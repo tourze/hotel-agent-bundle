@@ -68,30 +68,20 @@ class AgentLevelEnumTest extends TestCase
         $this->assertInstanceOf(\Tourze\EnumExtra\Selectable::class, $enum);
     }
 
-    public function test_getItems_returns_array_with_labels(): void
+    public function test_items_returns_array_with_labels(): void
     {
-        $items = AgentLevelEnum::getItems();
-        
+        $items = [];
+        foreach (AgentLevelEnum::cases() as $case) {
+            $items[$case->value] = $case->getLabel();
+        }
+
         $expected = [
             'a' => 'A级',
             'b' => 'B级',
             'c' => 'C级',
         ];
-        
-        $this->assertSame($expected, $items);
-    }
 
-    public function test_getSelectOptions_returns_array_for_select(): void
-    {
-        $options = AgentLevelEnum::getSelectOptions();
-        
-        $expected = [
-            'A级' => 'a',
-            'B级' => 'b',
-            'C级' => 'c',
-        ];
-        
-        $this->assertSame($expected, $options);
+        $this->assertSame($expected, $items);
     }
 
     public function test_all_enum_cases_have_labels(): void

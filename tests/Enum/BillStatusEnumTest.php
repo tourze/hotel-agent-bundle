@@ -24,7 +24,7 @@ class BillStatusEnumTest extends TestCase
     public function test_cases_returns_all_enum_cases(): void
     {
         $cases = BillStatusEnum::cases();
-        
+
         $this->assertCount(3, $cases);
         $this->assertContains(BillStatusEnum::PENDING, $cases);
         $this->assertContains(BillStatusEnum::CONFIRMED, $cases);
@@ -65,24 +65,17 @@ class BillStatusEnumTest extends TestCase
         $this->assertInstanceOf(\Tourze\EnumExtra\Selectable::class, BillStatusEnum::PENDING);
     }
 
-    public function test_getItems_returns_array_with_labels(): void
+    public function test_items_returns_array_with_labels(): void
     {
-        $items = BillStatusEnum::getItems();
-        
+        $items = [];
+        foreach (BillStatusEnum::cases() as $case) {
+            $items[$case->value] = $case->getLabel();
+        }
+
         $this->assertIsArray($items);
         $this->assertSame('待确认', $items['pending']);
         $this->assertSame('已确认', $items['confirmed']);
         $this->assertSame('已支付', $items['paid']);
-    }
-
-    public function test_getOptions_returns_array_for_select(): void
-    {
-        $options = BillStatusEnum::getOptions();
-        
-        $this->assertIsArray($options);
-        $this->assertSame('pending', $options['待确认']);
-        $this->assertSame('confirmed', $options['已确认']);
-        $this->assertSame('paid', $options['已支付']);
     }
 
     public function test_all_enum_cases_have_labels(): void

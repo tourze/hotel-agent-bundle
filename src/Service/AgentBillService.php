@@ -33,7 +33,7 @@ class AgentBillService
     public function generateMonthlyBills(string $billMonth, bool $force = false): array
     {
         $this->logger->info('开始生成代理账单', ['billMonth' => $billMonth]);
-        
+
         $generatedBills = [];
         $startDate = new \DateTime($billMonth . '-01 00:00:00');
         $endDate = clone $startDate;
@@ -90,11 +90,12 @@ class AgentBillService
      * 为单个代理生成账单
      */
     public function generateAgentBill(
-        Agent $agent,
-        string $billMonth,
+        Agent              $agent,
+        string             $billMonth,
         \DateTimeInterface $startDate,
         \DateTimeInterface $endDate
-    ): ?AgentBill {
+    ): ?AgentBill
+    {
         // 查询该代理在指定时间范围内的已确认订单
         $orders = $this->orderRepository->createQueryBuilder('o')
             ->andWhere('o.agent = :agent')
@@ -151,31 +152,30 @@ class AgentBillService
     private function calculateBillData(array $orders): array
     {
         $orderCount = count($orders);
-        $totalAmount = '0.00';
-        $totalProfit = '0.00';
+        $totalAmount = BigDecimal::of('0.00');
+        $totalProfit = BigDecimal::of('0.00');
 
         foreach ($orders as $order) {
-            $totalAmount = bcadd($totalAmount, $order->getTotalAmount(), 2);
-            
+            $totalAmount = $totalAmount->plus($order->getTotalAmount());
+
             // 计算利润总额
             foreach ($order->getOrderItems() as $item) {
                 $itemProfit = BigDecimal::of($item->getAmount())
-                    ->minus($item->getCostPrice())
-                    ->toScale(2);
-                $totalProfit = bcadd($totalProfit, $itemProfit, 2);
+                    ->minus($item->getCostPrice());
+                $totalProfit = $totalProfit->plus($itemProfit);
             }
         }
 
         // 佣金 = 利润 * 佣金比例
         $agent = $orders[0]->getAgent();
-        $commissionRate = $agent->getCommissionRate();
-        $commissionAmount = bcmul($totalProfit, bcdiv($commissionRate, '100', 4), 2);
+        $commissionRate = BigDecimal::of($agent->getCommissionRate());
+        $commissionAmount = $totalProfit->multipliedBy($commissionRate->dividedBy('100', 4))->toScale(2);
 
         return [
             'orderCount' => $orderCount,
-            'totalAmount' => $totalAmount,
-            'totalProfit' => $totalProfit,
-            'commissionAmount' => $commissionAmount
+            'totalAmount' => $totalAmount->toScale(2)->__toString(),
+            'totalProfit' => $totalProfit->toScale(2)->__toString(),
+            'commissionAmount' => $commissionAmount->__toString()
         ];
     }
 
@@ -185,7 +185,7 @@ class AgentBillService
     public function confirmBill(AgentBill $bill, ?string $remarks = null): bool
     {
         $oldStatus = $bill->getStatus();
-        
+
         if ($oldStatus !== BillStatusEnum::PENDING) {
             $this->logger->warning('账单状态不正确，无法确认', [
                 'billId' => $bill->getId(),
@@ -267,7 +267,7 @@ class AgentBillService
     public function markBillAsPaid(AgentBill $bill, ?string $paymentReference = null, ?string $remarks = null): bool
     {
         $oldStatus = $bill->getStatus();
-        
+
         if ($oldStatus !== BillStatusEnum::CONFIRMED) {
             $this->logger->warning('只有已确认的账单才能标记为已支付', [
                 'billId' => $bill->getId(),
@@ -290,34 +290,35 @@ class AgentBillService
      * 获取代理账单列表
      */
     public function getAgentBills(
-        ?Agent $agent = null,
+        ?Agent          $agent = null,
         ?BillStatusEnum $status = null,
-        ?string $billMonth = null,
-        int $page = 1,
-        int $limit = 20
-    ): array {
+        ?string         $billMonth = null,
+        int             $page = 1,
+        int             $limit = 20
+    ): array
+    {
         $qb = $this->agentBillRepository->createQueryBuilder('ab')
             ->leftJoin('ab.agent', 'a')
             ->addSelect('a');
 
         if ($agent) {
             $qb->andWhere('ab.agent = :agent')
-               ->setParameter('agent', $agent);
+                ->setParameter('agent', $agent);
         }
 
         if ($status) {
             $qb->andWhere('ab.status = :status')
-               ->setParameter('status', $status);
+                ->setParameter('status', $status);
         }
 
         if ($billMonth) {
             $qb->andWhere('ab.billMonth = :billMonth')
-               ->setParameter('billMonth', $billMonth);
+                ->setParameter('billMonth', $billMonth);
         }
 
         $qb->orderBy('ab.createTime', 'DESC')
-           ->setFirstResult(($page - 1) * $limit)
-           ->setMaxResults($limit);
+            ->setFirstResult(($page - 1) * $limit)
+            ->setMaxResults($limit);
 
         return $qb->getQuery()->getResult();
     }
@@ -365,9 +366,15 @@ class AgentBillService
             'monthly_summary' => []
         ];
 
+        $totalAmount = BigDecimal::of('0.00');
+        $totalCommission = BigDecimal::of('0.00');
+
         foreach ($bills as $bill) {
-            $report['total_amount'] = bcadd($report['total_amount'], $bill->getTotalAmount(), 2);
-            $report['total_commission'] = bcadd($report['total_commission'], $bill->getCommissionAmount(), 2);
+            $billAmount = BigDecimal::of($bill->getTotalAmount());
+            $billCommission = BigDecimal::of($bill->getCommissionAmount());
+
+            $totalAmount = $totalAmount->plus($billAmount);
+            $totalCommission = $totalCommission->plus($billCommission);
 
             // 状态统计
             $status = $bill->getStatus()->value;
@@ -375,8 +382,10 @@ class AgentBillService
                 $report['status_summary'][$status] = ['count' => 0, 'amount' => '0.00', 'commission' => '0.00'];
             }
             $report['status_summary'][$status]['count']++;
-            $report['status_summary'][$status]['amount'] = bcadd($report['status_summary'][$status]['amount'], $bill->getTotalAmount(), 2);
-            $report['status_summary'][$status]['commission'] = bcadd($report['status_summary'][$status]['commission'], $bill->getCommissionAmount(), 2);
+            $statusAmount = BigDecimal::of($report['status_summary'][$status]['amount'])->plus($billAmount);
+            $statusCommission = BigDecimal::of($report['status_summary'][$status]['commission'])->plus($billCommission);
+            $report['status_summary'][$status]['amount'] = $statusAmount->toScale(2)->__toString();
+            $report['status_summary'][$status]['commission'] = $statusCommission->toScale(2)->__toString();
 
             // 代理统计
             $agentCode = $bill->getAgent()->getCode();
@@ -389,8 +398,10 @@ class AgentBillService
                 ];
             }
             $report['agent_summary'][$agentCode]['count']++;
-            $report['agent_summary'][$agentCode]['amount'] = bcadd($report['agent_summary'][$agentCode]['amount'], $bill->getTotalAmount(), 2);
-            $report['agent_summary'][$agentCode]['commission'] = bcadd($report['agent_summary'][$agentCode]['commission'], $bill->getCommissionAmount(), 2);
+            $agentAmount = BigDecimal::of($report['agent_summary'][$agentCode]['amount'])->plus($billAmount);
+            $agentCommission = BigDecimal::of($report['agent_summary'][$agentCode]['commission'])->plus($billCommission);
+            $report['agent_summary'][$agentCode]['amount'] = $agentAmount->toScale(2)->__toString();
+            $report['agent_summary'][$agentCode]['commission'] = $agentCommission->toScale(2)->__toString();
 
             // 月度统计
             $month = $bill->getBillMonth();
@@ -398,10 +409,15 @@ class AgentBillService
                 $report['monthly_summary'][$month] = ['count' => 0, 'amount' => '0.00', 'commission' => '0.00'];
             }
             $report['monthly_summary'][$month]['count']++;
-            $report['monthly_summary'][$month]['amount'] = bcadd($report['monthly_summary'][$month]['amount'], $bill->getTotalAmount(), 2);
-            $report['monthly_summary'][$month]['commission'] = bcadd($report['monthly_summary'][$month]['commission'], $bill->getCommissionAmount(), 2);
+            $monthlyAmount = BigDecimal::of($report['monthly_summary'][$month]['amount'])->plus($billAmount);
+            $monthlyCommission = BigDecimal::of($report['monthly_summary'][$month]['commission'])->plus($billCommission);
+            $report['monthly_summary'][$month]['amount'] = $monthlyAmount->toScale(2)->__toString();
+            $report['monthly_summary'][$month]['commission'] = $monthlyCommission->toScale(2)->__toString();
         }
+
+        $report['total_amount'] = $totalAmount->toScale(2)->__toString();
+        $report['total_commission'] = $totalCommission->toScale(2)->__toString();
 
         return $report;
     }
-} 
+}

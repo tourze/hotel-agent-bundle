@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
+use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -31,7 +32,8 @@ class PaymentCrudController extends AbstractCrudController
 {
     public function __construct(
         private readonly PaymentService $paymentService,
-        private readonly AdminUrlGenerator $adminUrlGenerator
+        private readonly AdminUrlGenerator $adminUrlGenerator,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     public static function getEntityFqcn(): string
@@ -265,14 +267,14 @@ class PaymentCrudController extends AbstractCrudController
     public function new(AdminContext $context): Response
     {
         $response = parent::new($context);
-        
+
         if ($context->getRequest()->isMethod('POST')) {
             $payment = $context->getEntity()->getInstance();
             if ($payment instanceof Payment && $payment->getId()) {
                 // 新建成功后自动生成支付单号
                 if (empty($payment->getPaymentNo())) {
                     $payment->generatePaymentNo();
-                    $this->getDoctrine()->getManager()->flush();
+                    $this->entityManager->flush();
                 }
             }
         }

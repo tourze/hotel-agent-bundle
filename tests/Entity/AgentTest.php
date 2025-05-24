@@ -245,7 +245,7 @@ class AgentTest extends TestCase
         
         $this->assertSame($this->agent, $result);
         $this->assertFalse($this->agent->getBills()->contains($bill));
-        $this->assertSame($this->agent, $bill->getAgent());
+        $this->assertNull($bill->getAgent());
     }
 
     public function test_isExpired_returns_false_when_no_expiry_date(): void
@@ -307,7 +307,7 @@ class AgentTest extends TestCase
     {
         $time = new \DateTime();
         $this->agent->setCreateTime($time);
-        
+
         $this->assertSame($time, $this->agent->getCreateTime());
     }
 
@@ -315,14 +315,14 @@ class AgentTest extends TestCase
     {
         $time = new \DateTime();
         $this->agent->setUpdateTime($time);
-        
+
         $this->assertSame($time, $this->agent->getUpdateTime());
     }
 
     public function test_default_values(): void
     {
         $agent = new Agent();
-        
+
         $this->assertSame('', $agent->getCode());
         $this->assertSame('', $agent->getCompanyName());
         $this->assertSame('', $agent->getContactPerson());
@@ -337,4 +337,4 @@ class AgentTest extends TestCase
         $this->assertNull($agent->getUpdateTime());
         $this->assertNull($agent->getCreatedBy());
     }
-} 
+}

@@ -112,7 +112,7 @@ class OrderItemTest extends TestCase
 
         $this->assertSame($this->orderItem, $result);
         $this->assertSame($checkIn, $this->orderItem->getCheckInDate());
-        $this->assertSame('200', $this->orderItem->getAmount()); // 2 nights * 100
+        $this->assertSame('200.00', $this->orderItem->getAmount()); // 2 nights * 100
     }
 
     public function test_setCheckOutDate_calculates_amount(): void
@@ -126,7 +126,7 @@ class OrderItemTest extends TestCase
 
         $this->assertSame($this->orderItem, $result);
         $this->assertSame($checkOut, $this->orderItem->getCheckOutDate());
-        $this->assertSame('150', $this->orderItem->getAmount()); // 3 nights * 50
+        $this->assertSame('150.00', $this->orderItem->getAmount()); // 3 nights * 50
     }
 
     public function test_setUnitPrice_calculates_amount(): void
@@ -140,7 +140,7 @@ class OrderItemTest extends TestCase
 
         $this->assertSame($this->orderItem, $result);
         $this->assertSame('75.50', $this->orderItem->getUnitPrice());
-        $this->assertSame('151', $this->orderItem->getAmount()); // 2 nights * 75.50
+        $this->assertSame('151.00', $this->orderItem->getAmount()); // 2 nights * 75.50
     }
 
     public function test_setCostPrice_calculates_profit(): void
@@ -319,7 +319,7 @@ class OrderItemTest extends TestCase
             ->setCheckOutDate($checkOut)
             ->setUnitPrice('100.00');
 
-        $this->assertSame('0', $this->orderItem->getAmount());
+        $this->assertSame('0.00', $this->orderItem->getAmount());
     }
 
     public function test_profit_calculation_with_zero_cost(): void

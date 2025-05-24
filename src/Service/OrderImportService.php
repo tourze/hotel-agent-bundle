@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Service;
 
+use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -203,10 +204,14 @@ class OrderImportService
         $orderItem->setCheckOutDate($checkOutDate);
         $orderItem->setUnitPrice((string) $rowData['unit_price']);
 
-        // 计算金额
+        // 计算金额 - 使用 Brick\Math 进行精确计算
         $nights = $checkInDate->diff($checkOutDate)->days;
-        $amount = $rowData['unit_price'] * $rowData['room_count'] * $nights;
-        $orderItem->setAmount((string) $amount);
+        $unitPrice = BigDecimal::of($rowData['unit_price']);
+        $roomCount = BigDecimal::of($rowData['room_count']);
+        $nightsDecimal = BigDecimal::of($nights);
+        
+        $amount = $unitPrice->multipliedBy($roomCount)->multipliedBy($nightsDecimal)->toScale(2);
+        $orderItem->setAmount($amount->__toString());
 
         $order->addOrderItem($orderItem);
         $order->recalculateTotalAmount();

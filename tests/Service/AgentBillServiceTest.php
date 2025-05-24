@@ -50,13 +50,19 @@ class AgentBillServiceTest extends TestCase
     {
         $billMonth = '2025-01';
         
+        $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
         
         $this->entityManager->expects($this->once())
             ->method('getRepository')
             ->with(Agent::class)
-            ->willReturn($this->createMock(\Doctrine\ORM\EntityRepository::class));
+            ->willReturn($repository);
+            
+        $repository->expects($this->once())
+            ->method('createQueryBuilder')
+            ->with('a')
+            ->willReturn($queryBuilder);
             
         $queryBuilder->expects($this->once())
             ->method('andWhere')
@@ -287,7 +293,7 @@ class AgentBillServiceTest extends TestCase
             ->with('ab')
             ->willReturn($queryBuilder);
             
-        $queryBuilder->expects($this->exactly(6))
+        $queryBuilder->expects($this->exactly(3))
             ->method('andWhere')
             ->willReturnSelf();
         $queryBuilder->expects($this->exactly(3))
@@ -394,7 +400,7 @@ class AgentBillServiceTest extends TestCase
             ->with('ab')
             ->willReturn($queryBuilder);
             
-        $queryBuilder->expects($this->exactly(3))
+        $queryBuilder->expects($this->once())
             ->method('andWhere')
             ->willReturnSelf();
         $queryBuilder->expects($this->exactly(2))
@@ -494,7 +500,7 @@ class AgentBillServiceTest extends TestCase
             ->with('o')
             ->willReturn($queryBuilder);
             
-        $queryBuilder->expects($this->exactly(4))
+        $queryBuilder->expects($this->exactly(3))
             ->method('andWhere')
             ->willReturnSelf();
         $queryBuilder->expects($this->exactly(4))

@@ -2,8 +2,8 @@
 
 namespace Tourze\HotelAgentBundle\Service;
 
+use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
-use HotelBookingSystem\Service\FileUploadService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
@@ -21,7 +21,6 @@ class PaymentService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly PaymentRepository $paymentRepository,
-        private readonly FileUploadService $fileUploadService,
         private readonly LoggerInterface $logger,
         private readonly ParameterBagInterface $parameterBag
     ) {}
@@ -41,11 +40,11 @@ class PaymentService
         }
 
         // 验证金额
-        if (bccomp($amount, '0', 2) <= 0) {
+        if (BigDecimal::of($amount)->compareTo(BigDecimal::zero()) <= 0) {
             throw new \InvalidArgumentException('支付金额必须大于0');
         }
 
-        if (bccomp($amount, $agentBill->getCommissionAmount(), 2) > 0) {
+        if (BigDecimal::of($amount)->compareTo(BigDecimal::of($agentBill->getCommissionAmount())) > 0) {
             throw new \InvalidArgumentException('支付金额不能超过应付佣金');
         }
 
@@ -148,31 +147,6 @@ class PaymentService
     }
 
     /**
-     * 上传支付凭证
-     */
-    public function uploadPaymentProof(Payment $payment, $uploadedFile): bool
-    {
-        try {
-            $fileUrl = $this->fileUploadService->uploadFile($uploadedFile, 'payment_proofs');
-            $payment->setPaymentProofUrl($fileUrl);
-            $this->entityManager->flush();
-
-            $this->logger->info('上传支付凭证成功', [
-                'paymentId' => $payment->getId(),
-                'fileUrl' => $fileUrl
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            $this->logger->error('上传支付凭证失败', [
-                'paymentId' => $payment->getId(),
-                'error' => $e->getMessage()
-            ]);
-            return false;
-        }
-    }
-
-    /**
      * 检查账单是否完全支付
      */
     private function isFullyPaid(AgentBill $agentBill): bool
@@ -185,12 +159,12 @@ class PaymentService
             ->getQuery()
             ->getResult();
 
-        $totalPaid = '0.00';
+        $totalPaid = BigDecimal::zero();
         foreach ($successfulPayments as $payment) {
-            $totalPaid = bcadd($totalPaid, $payment->getAmount(), 2);
+            $totalPaid = $totalPaid->plus(BigDecimal::of($payment->getAmount()));
         }
 
-        return bccomp($totalPaid, $agentBill->getCommissionAmount(), 2) >= 0;
+        return $totalPaid->compareTo(BigDecimal::of($agentBill->getCommissionAmount())) >= 0;
     }
 
     /**
@@ -311,12 +285,14 @@ class PaymentService
 
         foreach ($payments as $payment) {
             $report['summary']['total_count']++;
-            $report['summary']['total_amount'] = bcadd($report['summary']['total_amount'], $payment->getAmount(), 2);
+            $report['summary']['total_amount'] = BigDecimal::of($report['summary']['total_amount'])
+                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
 
             switch ($payment->getStatus()) {
                 case PaymentStatusEnum::SUCCESS:
                     $report['summary']['success_count']++;
-                    $report['summary']['success_amount'] = bcadd($report['summary']['success_amount'], $payment->getAmount(), 2);
+                    $report['summary']['success_amount'] = BigDecimal::of($report['summary']['success_amount'])
+                        ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
                     break;
                 case PaymentStatusEnum::FAILED:
                     $report['summary']['failed_count']++;
@@ -332,7 +308,8 @@ class PaymentService
                 $report['by_method'][$method] = ['count' => 0, 'amount' => '0.00'];
             }
             $report['by_method'][$method]['count']++;
-            $report['by_method'][$method]['amount'] = bcadd($report['by_method'][$method]['amount'], $payment->getAmount(), 2);
+            $report['by_method'][$method]['amount'] = BigDecimal::of($report['by_method'][$method]['amount'])
+                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
 
             // 按代理统计
             $agentId = $payment->getAgentBill()->getAgent()->getId();
@@ -344,7 +321,8 @@ class PaymentService
                 ];
             }
             $report['by_agent'][$agentId]['count']++;
-            $report['by_agent'][$agentId]['amount'] = bcadd($report['by_agent'][$agentId]['amount'], $payment->getAmount(), 2);
+            $report['by_agent'][$agentId]['amount'] = BigDecimal::of($report['by_agent'][$agentId]['amount'])
+                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
 
             $report['payments'][] = [
                 'id' => $payment->getId(),
@@ -359,4 +337,4 @@ class PaymentService
 
         return $report;
     }
-} 
+}

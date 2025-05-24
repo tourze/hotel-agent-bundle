@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Command;
 
+use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -57,7 +58,7 @@ class GenerateMonthlyBillsCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        
+
         $billMonth = $input->getArgument('billMonth');
         $force = $input->getOption('force');
         $dryRun = $input->getOption('dry-run');
@@ -81,14 +82,14 @@ class GenerateMonthlyBillsCommand extends Command
 
         try {
             $startTime = microtime(true);
-            
+
             if ($dryRun) {
                 $result = $this->dryRunBillGeneration($billMonth);
                 $io->success(sprintf(
                     '试运行完成：将生成 %d 个代理的账单',
                     $result['agentCount']
                 ));
-                
+
                 if (!empty($result['agents'])) {
                     $io->table(
                         ['代理编号', '公司名称', '预计订单数', '预计佣金'],
@@ -104,7 +105,7 @@ class GenerateMonthlyBillsCommand extends Command
                 }
             } else {
                 $generatedBills = $this->agentBillService->generateMonthlyBills($billMonth);
-                
+
                 $endTime = microtime(true);
                 $duration = round($endTime - $startTime, 2);
 
@@ -121,8 +122,8 @@ class GenerateMonthlyBillsCommand extends Command
 
                 // 显示生成的账单详情
                 $tableData = [];
-                $totalCommission = '0.00';
-                
+                $totalCommission = BigDecimal::zero();
+
                 foreach ($generatedBills as $bill) {
                     $tableData[] = [
                         $bill->getAgent()->getCode(),
@@ -132,8 +133,8 @@ class GenerateMonthlyBillsCommand extends Command
                         '￥' . number_format($bill->getCommissionAmount(), 2),
                         $bill->getStatus()->getLabel()
                     ];
-                    
-                    $totalCommission = bcadd($totalCommission, $bill->getCommissionAmount(), 2);
+
+                    $totalCommission = $totalCommission->plus(BigDecimal::of($bill->getCommissionAmount()));
                 }
 
                 $io->table(
@@ -141,7 +142,7 @@ class GenerateMonthlyBillsCommand extends Command
                     $tableData
                 );
 
-                $io->info(sprintf('总佣金金额: ￥%s', number_format($totalCommission, 2)));
+                $io->info(sprintf('总佣金金额: ￥%s', number_format($totalCommission->toFloat(), 2)));
             }
 
             $this->logger->info('月结账单生成任务完成', [
@@ -199,27 +200,29 @@ class GenerateMonthlyBillsCommand extends Command
                 ->getResult();
 
             if (!empty($orders)) {
-                $totalAmount = '0.00';
-                $totalProfit = '0.00';
-                
+                $totalAmount = BigDecimal::zero();
+                $totalProfit = BigDecimal::zero();
+
                 foreach ($orders as $order) {
-                    $totalAmount = bcadd($totalAmount, $order->getTotalAmount(), 2);
+                    $totalAmount = $totalAmount->plus(BigDecimal::of($order->getTotalAmount()));
                     foreach ($order->getItems() as $item) {
-                        $itemProfit = bcsub($item->getAmount(), $item->getCostPrice(), 2);
-                        $totalProfit = bcadd($totalProfit, $itemProfit, 2);
+                        $itemProfit = BigDecimal::of($item->getAmount())->minus(BigDecimal::of($item->getCostPrice()));
+                        $totalProfit = $totalProfit->plus($itemProfit);
                     }
                 }
 
-                $commissionAmount = bcmul($totalProfit, bcdiv($agent->getCommissionRate(), '100', 4), 2);
+                $commissionAmount = $totalProfit->multipliedBy(
+                    BigDecimal::of($agent->getCommissionRate())->dividedBy(BigDecimal::of('100'), 4)
+                )->toScale(2);
 
                 $agents[] = [
                     'code' => $agent->getCode(),
                     'companyName' => $agent->getCompanyName(),
                     'orderCount' => count($orders),
-                    'totalAmount' => $totalAmount,
-                    'commissionAmount' => $commissionAmount
+                    'totalAmount' => $totalAmount->toScale(2)->__toString(),
+                    'commissionAmount' => $commissionAmount->__toString()
                 ];
-                
+
                 $agentCount++;
             }
         }
@@ -229,4 +232,4 @@ class GenerateMonthlyBillsCommand extends Command
             'agents' => $agents
         ];
     }
-} 
+}

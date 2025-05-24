@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
+use Brick\Math\BigDecimal;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -38,11 +39,11 @@ class BillReportController extends AbstractController
     {
         try {
             $statistics = $this->agentBillService->getBillStatistics($billMonth);
-            
+
             $formattedStats = [];
             $totalBills = 0;
-            $totalAmount = '0.00';
-            $totalCommission = '0.00';
+            $totalAmount = BigDecimal::zero();
+            $totalCommission = BigDecimal::zero();
 
             foreach ($statistics as $stat) {
                 $status = $stat['status'];
@@ -59,8 +60,8 @@ class BillReportController extends AbstractController
                 ];
 
                 $totalBills += $count;
-                $totalAmount = bcadd($totalAmount, $amount, 2);
-                $totalCommission = bcadd($totalCommission, $commission, 2);
+                $totalAmount = $totalAmount->plus(BigDecimal::of($amount));
+                $totalCommission = $totalCommission->plus(BigDecimal::of($commission));
             }
 
             return $this->json([
@@ -68,8 +69,8 @@ class BillReportController extends AbstractController
                 'data' => [
                     'bill_month' => $billMonth,
                     'total_bills' => $totalBills,
-                    'total_amount' => $totalAmount,
-                    'total_commission' => $totalCommission,
+                    'total_amount' => $totalAmount->toScale(2)->__toString(),
+                    'total_commission' => $totalCommission->toScale(2)->__toString(),
                     'status_breakdown' => $formattedStats
                 ]
             ]);
@@ -187,10 +188,10 @@ class BillReportController extends AbstractController
             $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
 
             $output = fopen('php://temp', 'w');
-            
+
             // 写入BOM以支持中文
             fwrite($output, "\xEF\xBB\xBF");
-            
+
             // 写入表头
             fputcsv($output, [
                 'ID', '账单ID', '代理名称', '账单月份', '操作类型', 
@@ -233,8 +234,8 @@ class BillReportController extends AbstractController
      */
     private function exportToCsv(array $report, \DateTimeInterface $startDate, \DateTimeInterface $endDate): Response
     {
-        $filename = sprintf('bill_report_%s_%s.csv', 
-            $startDate->format('Y-m-d'), 
+        $filename = sprintf('bill_report_%s_%s.csv',
+            $startDate->format('Y-m-d'),
             $endDate->format('Y-m-d')
         );
 
@@ -243,10 +244,10 @@ class BillReportController extends AbstractController
         $response->headers->set('Content-Disposition', 'attachment; filename="' . $filename . '"');
 
         $output = fopen('php://temp', 'w');
-        
+
         // 写入BOM以支持中文
         fwrite($output, "\xEF\xBB\xBF");
-        
+
         // 写入汇总信息
         fputcsv($output, ['账单统计报表']);
         fputcsv($output, ['统计期间', $startDate->format('Y-m-d') . ' 至 ' . $endDate->format('Y-m-d')]);
@@ -293,4 +294,4 @@ class BillReportController extends AbstractController
         // 这里简化为CSV格式，实际项目中应该使用PhpSpreadsheet生成真正的Excel文件
         return $this->exportToCsv($report, $startDate, $endDate);
     }
-} 
+}

@@ -335,9 +335,9 @@ class OrderItem implements Stringable
         }
 
         $nights = $this->calculateNights();
-        $unitPrice = (float)$this->unitPrice;
+        $unitPrice = BigDecimal::of($this->unitPrice);
 
-        $this->amount = (string)($nights * $unitPrice);
+        $this->amount = $unitPrice->multipliedBy(BigDecimal::of($nights))->toScale(2)->__toString();
         $this->calculateProfit();
     }
 
@@ -365,8 +365,8 @@ class OrderItem implements Stringable
         }
 
         $nights = $this->calculateNights();
-        $totalCost = (string)($nights * (float)$this->costPrice);
-        $this->profit = BigDecimal::of($this->amount)->minus($totalCost)->toScale(2);
+        $totalCost = BigDecimal::of($this->costPrice)->multipliedBy(BigDecimal::of($nights))->toScale(2);
+        $this->profit = BigDecimal::of($this->amount)->minus($totalCost)->toScale(2)->__toString();
     }
 
     /**

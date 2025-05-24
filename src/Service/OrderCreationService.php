@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Service;
 
+use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\Order;
@@ -232,7 +233,7 @@ class OrderCreationService
         try {
             // 创建订单
             $order = $this->createOrder($agent, $remark);
-            $totalOrderAmount = 0.0;
+            $totalOrderAmount = BigDecimal::zero();
 
             // 逐日创建订单项
             $currentDate = clone $checkInDate;
@@ -270,14 +271,14 @@ class OrderCreationService
                         $dailyInventory
                     );
 
-                    $totalOrderAmount += (float)$dailyInventory->getSellingPrice();
+                    $totalOrderAmount = $totalOrderAmount->plus(BigDecimal::of($dailyInventory->getSellingPrice()));
                 }
 
                 $currentDate->modify('+1 day');
             }
 
             // 设置订单总金额
-            $order->setTotalAmount((string)$totalOrderAmount);
+            $order->setTotalAmount($totalOrderAmount->toScale(2)->__toString());
 
             $this->entityManager->flush();
             $this->entityManager->commit();

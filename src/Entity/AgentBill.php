@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Entity;
 
+use Brick\Math\BigDecimal;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
@@ -24,8 +25,8 @@ class AgentBill implements Stringable
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Agent::class, inversedBy: 'bills')]
-    #[ORM\JoinColumn(name: 'agent_id', referencedColumnName: 'id', nullable: false)]
-    private Agent $agent;
+    #[ORM\JoinColumn(name: 'agent_id', referencedColumnName: 'id', nullable: true)]
+    private ?Agent $agent = null;
 
     #[ORM\Column(type: Types::STRING, length: 7, options: ['comment' => '账单月份，格式：yyyy-MM'])]
     private string $billMonth = '';
@@ -74,7 +75,7 @@ class AgentBill implements Stringable
 
     public function __toString(): string
     {
-        $agentCode = $this->agent->getCode();
+        $agentCode = $this->agent ? $this->agent->getCode() : 'N/A';
         return sprintf('账单 %s (%s)', $this->billMonth, $agentCode);
     }
 
@@ -83,12 +84,12 @@ class AgentBill implements Stringable
         return $this->id;
     }
 
-    public function getAgent(): Agent
+    public function getAgent(): ?Agent
     {
         return $this->agent;
     }
 
-    public function setAgent(Agent $agent): self
+    public function setAgent(?Agent $agent): self
     {
         $this->agent = $agent;
         return $this;
@@ -262,10 +263,10 @@ class AgentBill implements Stringable
      */
     public function calculateCommission(): self
     {
-        $commissionRate = (float)$this->commissionRate;
-        $totalAmount = (float)$this->totalAmount;
-        $commissionAmount = round($totalAmount * $commissionRate, 2);
-        $this->commissionAmount = (string)$commissionAmount;
+        $commissionRate = BigDecimal::of($this->commissionRate);
+        $totalAmount = BigDecimal::of($this->totalAmount);
+        $commissionAmount = $totalAmount->multipliedBy($commissionRate)->toScale(2, \Brick\Math\RoundingMode::HALF_UP);
+        $this->commissionAmount = $commissionAmount->__toString();
         return $this;
     }
 

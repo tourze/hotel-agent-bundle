@@ -334,9 +334,9 @@ class OrderItem implements Stringable
         }
 
         $nights = $this->calculateNights();
-        $unitPrice = (float) $this->unitPrice;
+        $unitPrice = (float)$this->unitPrice;
 
-        $this->amount = (string) ($nights * $unitPrice);
+        $this->amount = (string)($nights * $unitPrice);
         $this->calculateProfit();
     }
 
@@ -364,16 +364,8 @@ class OrderItem implements Stringable
         }
 
         $nights = $this->calculateNights();
-        $totalCost = (string) ($nights * (float) $this->costPrice);
+        $totalCost = (string)($nights * (float)$this->costPrice);
         $this->profit = bcsub($this->amount, $totalCost, 2);
-    }
-
-    /**
-     * 计算单日利润
-     */
-    public function calculateDailyProfit(): string
-    {
-        return bcsub($this->unitPrice, $this->costPrice, 2);
     }
 
     /**

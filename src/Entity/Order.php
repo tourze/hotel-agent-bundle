@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Entity;
 
+use Brick\Math\BigDecimal;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
@@ -303,10 +304,10 @@ class Order implements Stringable
         if (!$this->orderItems->contains($orderItem)) {
             $this->orderItems->add($orderItem);
             $orderItem->setOrder($this);
-            
+
             // 更新订单总金额
             $this->recalculateTotalAmount();
-            
+
             // 检查是否为复合订单
             $this->checkIfComplex();
         }
@@ -320,10 +321,10 @@ class Order implements Stringable
             if ($orderItem->getOrder() === $this) {
                 $orderItem->setOrder(null);
             }
-            
+
             // 更新订单总金额
             $this->recalculateTotalAmount();
-            
+
             // 检查是否为复合订单
             $this->checkIfComplex();
         }
@@ -337,11 +338,11 @@ class Order implements Stringable
     public function recalculateTotalAmount(): void
     {
         $totalAmount = '0.00';
-        
+
         foreach ($this->orderItems as $orderItem) {
-            $totalAmount = bcadd($totalAmount, $orderItem->getAmount(), 2);
+            $totalAmount = BigDecimal::of($totalAmount)->plus($orderItem->getAmount())->toScale(2);
         }
-        
+
         $this->totalAmount = $totalAmount;
     }
 
@@ -354,18 +355,18 @@ class Order implements Stringable
             $this->isComplex = false;
             return;
         }
-        
+
         $hotelIds = [];
         $roomTypeIds = [];
-        
+
         foreach ($this->orderItems as $orderItem) {
             $hotelId = $orderItem->getHotel()?->getId();
             $roomTypeId = $orderItem->getRoomType()?->getId();
-            
+
             if ($hotelId && !in_array($hotelId, $hotelIds)) {
                 $hotelIds[] = $hotelId;
             }
-            
+
             if ($roomTypeId && !in_array($roomTypeId, $roomTypeIds)) {
                 $roomTypeIds[] = $roomTypeId;
             }
@@ -384,13 +385,13 @@ class Order implements Stringable
         $this->cancelReason = $reason;
         $this->cancelTime = new \DateTime();
         $this->cancelledBy = $cancelledBy;
-        
+
         $this->addChangeRecord('cancel', [
             'reason' => $reason,
             'from' => 'active',
             'to' => 'canceled'
         ], $cancelledBy);
-        
+
         return $this;
     }
 
@@ -400,12 +401,12 @@ class Order implements Stringable
     public function confirm(int $operatorId): self
     {
         $this->status = OrderStatusEnum::CONFIRMED;
-        
+
         $this->addChangeRecord('confirm', [
             'from' => $this->status->value,
             'to' => OrderStatusEnum::CONFIRMED->value
         ], $operatorId);
-        
+
         return $this;
     }
 
@@ -415,13 +416,13 @@ class Order implements Stringable
     public function close(string $reason, int $operatorId): self
     {
         $this->status = OrderStatusEnum::CLOSED;
-        
+
         $this->addChangeRecord('close', [
             'reason' => $reason,
             'from' => 'active',
             'to' => 'closed'
         ], $operatorId);
-        
+
         return $this;
     }
 

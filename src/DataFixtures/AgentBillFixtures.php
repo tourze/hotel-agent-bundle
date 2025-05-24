@@ -130,6 +130,7 @@ class AgentBillFixtures extends Fixture implements DependentFixtureInterface
     {
         return [
             AgentFixtures::class,
+            OrderFixtures::class,
         ];
     }
-} 
+}

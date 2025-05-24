@@ -2,10 +2,12 @@
 
 namespace Tourze\HotelAgentBundle\Service;
 
+use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
+use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
@@ -142,6 +144,9 @@ class AgentBillService
 
     /**
      * 计算账单数据
+     *
+     * @param Order[] $orders
+     * @return array
      */
     private function calculateBillData(array $orders): array
     {
@@ -153,8 +158,10 @@ class AgentBillService
             $totalAmount = bcadd($totalAmount, $order->getTotalAmount(), 2);
             
             // 计算利润总额
-            foreach ($order->getItems() as $item) {
-                $itemProfit = bcsub($item->getAmount(), $item->getCostPrice(), 2);
+            foreach ($order->getOrderItems() as $item) {
+                $itemProfit = BigDecimal::of($item->getAmount())
+                    ->minus($item->getCostPrice())
+                    ->toScale(2);
                 $totalProfit = bcadd($totalProfit, $itemProfit, 2);
             }
         }

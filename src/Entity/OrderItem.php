@@ -2,6 +2,7 @@
 
 namespace Tourze\HotelAgentBundle\Entity;
 
+use Brick\Math\BigDecimal;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
@@ -365,7 +366,7 @@ class OrderItem implements Stringable
 
         $nights = $this->calculateNights();
         $totalCost = (string)($nights * (float)$this->costPrice);
-        $this->profit = bcsub($this->amount, $totalCost, 2);
+        $this->profit = BigDecimal::of($this->amount)->minus($totalCost)->toScale(2);
     }
 
     /**

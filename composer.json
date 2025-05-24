@@ -27,7 +27,6 @@
     "tourze/doctrine-timestamp-bundle": "0.0.*",
     "tourze/doctrine-user-bundle": "0.0.*",
     "tourze/enum-extra": "~0.0.5",
-    "tourze/hotel-contract-bundle": "0.0.*",
     "tourze/hotel-profile-bundle": "0.0.*"
   },
   "require-dev": {

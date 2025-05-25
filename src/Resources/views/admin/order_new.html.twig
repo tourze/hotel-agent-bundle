@@ -1,0 +1,671 @@
+{% extends '@EasyAdmin/layout.html.twig' %}
+
+{% block body_id 'order-new' %}
+
+{% block main %}
+    <h1 class="page-title">
+        <i class="fa fa-plus"></i>
+        新建订单
+    </h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">订单信息</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="order-form">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="agent_id">代理商 *</label>
+                                    <select class="form-control" id="agent_id" name="agent_id" required>
+                                        <option value="">请选择代理商</option>
+                                        {% for agent in agents %}
+                                            <option value="{{ agent.id }}">{{ agent.companyName }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="room_type_id">房型 *</label>
+                                    <select class="form-control" id="room_type_id" name="room_type_id" required>
+                                        <option value="">请选择房型</option>
+                                        {% for roomType in roomTypes %}
+                                            <option value="{{ roomType.id }}" 
+                                                    data-hotel="{{ roomType.hotel.name }}"
+                                                    data-bed-type="{{ roomType.bedType }}"
+                                                    data-max-guests="{{ roomType.maxGuests }}">
+                                                {{ roomType.hotel.name }} - {{ roomType.name }}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                    <small class="form-text text-muted">房型包含酒店信息</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="check_in_date">入住日期 *</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="check_in_date" 
+                                           name="check_in_date" 
+                                           required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="check_out_date">退房日期 *</label>
+                                    <input type="date" 
+                                           class="form-control" 
+                                           id="check_out_date" 
+                                           name="check_out_date" 
+                                           required>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="room_count">房间数量 *</label>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="room_count" 
+                                           name="room_count" 
+                                           min="1" 
+                                           value="1"
+                                           required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="button" class="btn btn-info" id="check-inventory">
+                                <i class="fa fa-search"></i>
+                                查询库存
+                            </button>
+                        </div>
+
+                        <!-- 库存信息表格 -->
+                        <div id="inventory-section" style="display: none;">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="fa fa-calendar"></i>
+                                        库存信息
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div id="room-type-info" class="mb-3"></div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered">
+                                            <thead>
+                                                <tr>
+                                                    <th>选择</th>
+                                                    <th>日期</th>
+                                                    <th>星期</th>
+                                                    <th>总房数</th>
+                                                    <th>可用房数</th>
+                                                    <th>已订房数</th>
+                                                    <th>合同价格</th>
+                                                    <th>利润</th>
+                                                    <th>状态</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="inventory-table-body">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div id="inventory-summary" class="mt-3"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="remark">订单备注</label>
+                            <textarea class="form-control" 
+                                      id="remark" 
+                                      name="remark" 
+                                      rows="3" 
+                                      placeholder="可填写特殊要求或备注信息"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-success" id="submit-btn" disabled>
+                                <i class="fa fa-save"></i>
+                                创建订单
+                            </button>
+                            <a href="{{ ea_url() }}" class="btn btn-secondary">
+                                <i class="fa fa-arrow-left"></i>
+                                返回订单列表
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">订单说明</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i>
+                        <strong>创建流程：</strong>
+                        <ol class="mb-0 mt-2">
+                            <li>选择代理商</li>
+                            <li>选择房型（包含酒店信息）</li>
+                            <li>设置入住日期和房间数量</li>
+                            <li>查询库存信息</li>
+                            <li>确认创建订单</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h3 class="card-title">库存说明</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fa fa-info-circle"></i>
+                        <strong>库存选择：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>系统将查询选定日期范围内的每日库存</li>
+                            <li>显示每日的合同价格详情（可能有多个合同）</li>
+                            <li>每天需要选择房间数量对应的库存记录</li>
+                            <li>例如：3间房需要每天选择3个库存记录</li>
+                            <li>默认选择利润最高的方案</li>
+                            <li>您可以手动调整选择其他价格方案</li>
+                            <li>实时显示总金额和利润变化</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h3 class="card-title">订单创建规则</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i>
+                        <strong>拆分规则：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>系统按日期和房间数拆分OrderItem</li>
+                            <li>例如：2天2房间 = 4个OrderItem记录</li>
+                            <li>每个OrderItem对应1间房1天</li>
+                            <li>价格自动从DailyInventory获取</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h3 class="card-title">注意事项</h3>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled">
+                        <li><i class="fa fa-check text-success"></i> 代理商必须已经存在系统中</li>
+                        <li><i class="fa fa-check text-success"></i> 房型包含酒店信息</li>
+                        <li><i class="fa fa-check text-success"></i> 退房日期必须晚于入住日期</li>
+                        <li><i class="fa fa-check text-success"></i> 所有日期必须有足够库存</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block body_javascript %}
+    {{ parent() }}
+    <style>
+        .table-info {
+            background-color: #d1ecf1 !important;
+        }
+        .inventory-checkbox {
+            transform: scale(1.2);
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 设置默认入住日期为明天
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('check_in_date').value = tomorrow.toISOString().split('T')[0];
+            
+            // 设置默认退房日期为后天
+            const dayAfterTomorrow = new Date();
+            dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+            document.getElementById('check_out_date').value = dayAfterTomorrow.toISOString().split('T')[0];
+            
+            // 入住日期变化时自动更新退房日期
+            document.getElementById('check_in_date').addEventListener('change', function() {
+                const checkInDate = new Date(this.value);
+                const checkOutDate = new Date(checkInDate);
+                checkOutDate.setDate(checkOutDate.getDate() + 1);
+                document.getElementById('check_out_date').value = checkOutDate.toISOString().split('T')[0];
+                hideInventorySection();
+            });
+            
+            // 其他字段变化时隐藏库存信息和更新价格计算
+            ['room_type_id', 'check_out_date', 'room_count'].forEach(function(fieldId) {
+                document.getElementById(fieldId).addEventListener('change', function() {
+                    hideInventorySection();
+                });
+            });
+            
+            // 查询库存按钮
+            document.getElementById('check-inventory').addEventListener('click', function() {
+                checkInventory();
+            });
+            
+            // 表单验证
+            document.getElementById('order-form').addEventListener('submit', function(e) {
+                const checkInDate = new Date(document.getElementById('check_in_date').value);
+                const checkOutDate = new Date(document.getElementById('check_out_date').value);
+                
+                if (checkOutDate <= checkInDate) {
+                    e.preventDefault();
+                    alert('退房日期必须晚于入住日期');
+                    return;
+                }
+                
+                const daysDiff = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+                if (daysDiff > 30) {
+                    if (!confirm('住宿天数超过30天，确认要创建此订单吗？')) {
+                        e.preventDefault();
+                        return;
+                    }
+                }
+
+                // 检查是否已查询库存并选择
+                const inventorySection = document.getElementById('inventory-section');
+                if (inventorySection.style.display === 'none') {
+                    e.preventDefault();
+                    alert('请先查询库存信息');
+                    return;
+                }
+
+                // 验证每天选择的库存数量是否等于房间数
+                const roomCount = parseInt(document.getElementById('room_count').value);
+                const inventoryDates = new Set();
+                
+                // 收集所有日期
+                document.querySelectorAll('input[type="checkbox"][name^="inventory_"]').forEach(function(checkbox) {
+                    const date = checkbox.name.replace('inventory_', '');
+                    inventoryDates.add(date);
+                });
+                
+                // 检查每个日期的选择情况
+                for (const date of inventoryDates) {
+                    const selectedCount = document.querySelectorAll(`input[name="inventory_${date}"]:checked`).length;
+                    if (selectedCount !== roomCount) {
+                        e.preventDefault();
+                        alert(`${date} 需要选择 ${roomCount} 个库存记录，当前选择了 ${selectedCount} 个`);
+                        return;
+                    }
+                }
+
+                // 添加用户选择的库存ID到表单
+                const selectedCheckboxes = document.querySelectorAll('input[type="checkbox"][name^="inventory_"]:checked');
+                if (selectedCheckboxes.length === 0) {
+                    e.preventDefault();
+                    alert('请选择库存方案');
+                    return;
+                }
+
+                // 清除之前的隐藏字段
+                const existingHiddenInputs = document.querySelectorAll('input[name^="inventory_"][type="hidden"]');
+                existingHiddenInputs.forEach(input => input.remove());
+
+                // 添加新的隐藏字段
+                selectedCheckboxes.forEach(function(checkbox, index) {
+                    const hiddenInput = document.createElement('input');
+                    hiddenInput.type = 'hidden';
+                    hiddenInput.name = `selected_inventories[${index}]`;
+                    hiddenInput.value = checkbox.value;
+                    document.getElementById('order-form').appendChild(hiddenInput);
+                });
+            });
+        });
+        
+        function hideInventorySection() {
+            document.getElementById('inventory-section').style.display = 'none';
+            document.getElementById('submit-btn').disabled = true;
+        }
+        
+        function checkInventory() {
+            const roomTypeId = document.getElementById('room_type_id').value;
+            const checkInDate = document.getElementById('check_in_date').value;
+            const checkOutDate = document.getElementById('check_out_date').value;
+            const roomCount = document.getElementById('room_count').value;
+            
+            if (!roomTypeId || !checkInDate || !checkOutDate || !roomCount) {
+                alert('请先完整填写房型、日期和房间数量');
+                return;
+            }
+            
+            const checkInDateObj = new Date(checkInDate);
+            const checkOutDateObj = new Date(checkOutDate);
+            
+            if (checkOutDateObj <= checkInDateObj) {
+                alert('退房日期必须晚于入住日期');
+                return;
+            }
+            
+            // 显示加载状态
+            const button = document.getElementById('check-inventory');
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> 查询中...';
+            button.disabled = true;
+            
+            // 发送Ajax请求
+            fetch('{{ url('admin_order_ajax_inventory') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    room_type_id: roomTypeId,
+                    check_in_date: checkInDate,
+                    check_out_date: checkOutDate,
+                    room_count: roomCount
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayInventoryData(data.data);
+                } else {
+                    alert('查询失败：' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('查询失败：' + error.message);
+            })
+            .finally(() => {
+                button.innerHTML = originalText;
+                button.disabled = false;
+            });
+        }
+        
+        function displayInventoryData(data) {
+            // 显示房型信息
+            const roomTypeInfo = document.getElementById('room-type-info');
+            roomTypeInfo.innerHTML = `
+                <div class="row">
+                    <div class="col-md-4"><strong>酒店：</strong>${data.room_type.hotel_name}</div>
+                    <div class="col-md-4"><strong>房型：</strong>${data.room_type.name}</div>
+                    <div class="col-md-4"><strong>床型：</strong>${data.room_type.bed_type}</div>
+                </div>
+            `;
+            
+            // 显示库存表格
+            const tbody = document.getElementById('inventory-table-body');
+            tbody.innerHTML = '';
+            
+            data.inventory.forEach(function(dayInfo) {
+                if (dayInfo.daily_inventories.length === 0) {
+                    // 没有库存记录
+                    const row = document.createElement('tr');
+                    row.className = 'table-danger';
+                    row.innerHTML = `
+                        <td><span class="text-muted">-</span></td>
+                        <td>${dayInfo.date_display}</td>
+                        <td>${dayInfo.day_of_week}</td>
+                        <td>0</td>
+                        <td class="text-danger">0</td>
+                        <td>0</td>
+                        <td class="text-muted">无价格</td>
+                        <td class="text-muted">-</td>
+                        <td><span class="badge badge-danger">无库存</span></td>
+                    `;
+                    tbody.appendChild(row);
+                } else {
+                    // 有库存记录，可能有多个合同价格
+                    dayInfo.daily_inventories.forEach(function(inventory, index) {
+                        const row = document.createElement('tr');
+                        const statusClass = dayInfo.can_book ? 'text-success' : 'text-danger';
+                        const bgClass = dayInfo.can_book ? '' : 'table-warning';
+                        const isDefault = inventory.is_default;
+                        const profitClass = inventory.profit_amount > 0 ? 'text-success' : 'text-danger';
+                        
+                        row.className = bgClass;
+                        row.innerHTML = `
+                            <td>
+                                ${dayInfo.can_book ? `
+                                    <input type="checkbox" 
+                                           name="inventory_${dayInfo.date}" 
+                                           value="${inventory.id}" 
+                                           ${isDefault ? 'checked' : ''}
+                                           onchange="updateInventorySelection('${dayInfo.date}', this)"
+                                           class="inventory-checkbox">
+                                ` : '<span class="text-muted">-</span>'}
+                            </td>
+                            <td>${index === 0 ? dayInfo.date_display : ''}</td>
+                            <td>${index === 0 ? dayInfo.day_of_week : ''}</td>
+                            <td>${index === 0 ? (dayInfo.total_rooms > 0 ? dayInfo.total_rooms : '无统计') : ''}</td>
+                            <td class="${statusClass}">${index === 0 ? dayInfo.available_rooms : ''}</td>
+                            <td>${index === 0 ? dayInfo.booked_rooms : ''}</td>
+                            <td>
+                                <div><strong>售价：</strong>¥${inventory.selling_price}</div>
+                                <div><small>成本：¥${inventory.cost_price}</small></div>
+                                <div><small>${inventory.contract_no}</small></div>
+                            </td>
+                            <td class="${profitClass}">
+                                <div><strong>¥${inventory.profit_amount.toFixed(2)}</strong></div>
+                                <div><small>${inventory.profit_rate}%</small></div>
+                            </td>
+                            <td>${index === 0 ? `<span class="badge badge-${dayInfo.can_book ? 'success' : 'danger'}">${dayInfo.can_book ? '可预订' : '库存不足'}</span>` : ''}</td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                }
+            });
+            
+            // 显示汇总信息
+            const summary = document.getElementById('inventory-summary');
+            const canBookAll = data.can_book_all;
+            const roomCount = parseInt(document.getElementById('room_count').value) || 0;
+            
+            // 分析库存情况
+            let statusMessage = '';
+            let insufficientDays = [];
+            
+            data.inventory.forEach(function(dayInfo) {
+                if (!dayInfo.can_book) {
+                    insufficientDays.push({
+                        date: dayInfo.date_display,
+                        available: dayInfo.available_rooms,
+                        requested: dayInfo.requested_rooms || roomCount,
+                        shortage: dayInfo.shortage || 0
+                    });
+                }
+            });
+            
+            if (canBookAll) {
+                statusMessage = `<div class="alert alert-success"><i class="fa fa-check"></i> 库存充足，可以预订</div>`;
+            } else {
+                let shortageDetails = insufficientDays.map(day => 
+                    `${day.date} (需要${day.requested}间，可用${day.available}间，缺少${day.shortage}间)`
+                ).join('、');
+                
+                statusMessage = `
+                    <div class="alert alert-danger">
+                        <i class="fa fa-exclamation-triangle"></i> 
+                        <strong>库存不足！</strong><br>
+                        <small>以下日期库存不足：${shortageDetails}</small>
+                    </div>
+                `;
+            }
+            
+            const totalAmount = calculateSelectedAmount(data);
+            const totalProfit = calculateSelectedProfit(data);
+            
+            summary.innerHTML = `
+                ${statusMessage}
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="alert alert-info">
+                            <strong>需求房间数：</strong>${roomCount}间/天
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-info">
+                            <strong>总夜数：</strong>${data.total_nights}夜
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-light">
+                            <strong>预计总金额：</strong>¥<span id="total-amount">${totalAmount.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="alert alert-light">
+                            <strong>预计利润：</strong>¥<span id="total-profit" class="${totalProfit >= 0 ? 'text-success' : 'text-danger'}">${totalProfit.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 显示库存信息区域
+            document.getElementById('inventory-section').style.display = 'block';
+
+            // 根据库存情况启用/禁用提交按钮
+            document.getElementById('submit-btn').disabled = !canBookAll;
+            
+            // 初始化选中行的背景色
+            data.inventory.forEach(function(dayInfo) {
+                updateRowHighlights(dayInfo.date);
+            });
+        }
+
+        function calculateSelectedAmount(data) {
+            let total = 0;
+            
+            data.inventory.forEach(function(dayInfo) {
+                const selectedCheckboxes = document.querySelectorAll(`input[name="inventory_${dayInfo.date}"]:checked`);
+                selectedCheckboxes.forEach(function(checkbox) {
+                    if (dayInfo.daily_inventories.length > 0) {
+                        const selectedId = parseInt(checkbox.value);
+                        const selectedInventory = dayInfo.daily_inventories.find(inv => inv.id === selectedId);
+                        if (selectedInventory) {
+                            const price = parseFloat(selectedInventory.selling_price) || 0;
+                            total += price;
+                        }
+                    }
+                });
+            });
+
+            return total;
+        }
+
+        function calculateSelectedProfit(data) {
+            let totalProfit = 0;
+
+            data.inventory.forEach(function(dayInfo) {
+                const selectedCheckboxes = document.querySelectorAll(`input[name="inventory_${dayInfo.date}"]:checked`);
+                selectedCheckboxes.forEach(function(checkbox) {
+                    if (dayInfo.daily_inventories.length > 0) {
+                        const selectedId = parseInt(checkbox.value);
+                        const selectedInventory = dayInfo.daily_inventories.find(inv => inv.id === selectedId);
+                        if (selectedInventory) {
+                            const profit = parseFloat(selectedInventory.profit_amount) || 0;
+                            totalProfit += profit;
+                        }
+                    }
+                });
+            });
+
+            return totalProfit;
+        }
+
+        function updatePriceCalculation() {
+            // 获取当前显示的库存数据
+            const inventorySection = document.getElementById('inventory-section');
+            if (inventorySection.style.display === 'none') {
+                return;
+            }
+
+            let totalAmount = 0;
+            let totalProfit = 0;
+            
+            // 遍历所有选中的库存
+            document.querySelectorAll('input[type="checkbox"][name^="inventory_"]:checked').forEach(function(checkbox) {
+                const inventoryRow = checkbox.closest('tr');
+                const priceCell = inventoryRow.querySelector('td:nth-child(7)');
+                const profitCell = inventoryRow.querySelector('td:nth-child(8)');
+                
+                if (priceCell && profitCell) {
+                    // 解析价格
+                    const priceText = priceCell.querySelector('div').textContent;
+                    const price = parseFloat(priceText.replace('售价：¥', '')) || 0;
+                    
+                    // 解析利润
+                    const profitText = profitCell.querySelector('div strong').textContent;
+                    const profit = parseFloat(profitText.replace('¥', '')) || 0;
+                    
+                    // 每个选中的库存记录代表1间房
+                    totalAmount += price;
+                    totalProfit += profit;
+                }
+            });
+            
+            // 更新显示
+            const totalAmountElement = document.getElementById('total-amount');
+            const totalProfitElement = document.getElementById('total-profit');
+            
+            if (totalAmountElement) {
+                totalAmountElement.textContent = totalAmount.toFixed(2);
+            }
+            
+            if (totalProfitElement) {
+                totalProfitElement.textContent = totalProfit.toFixed(2);
+                totalProfitElement.className = totalProfit >= 0 ? 'text-success' : 'text-danger';
+            }
+        }
+
+        function updateInventorySelection(date, checkbox) {
+            const roomCount = parseInt(document.getElementById('room_count').value) || 0;
+            const checkedBoxes = document.querySelectorAll(`input[name="inventory_${date}"]:checked`);
+            
+            // 检查选择数量是否超过房间数
+            if (checkedBoxes.length > roomCount) {
+                // 找到除当前checkbox之外的其他选中项，取消选择第一个
+                for (let i = 0; i < checkedBoxes.length; i++) {
+                    if (checkedBoxes[i] !== checkbox) {
+                        checkedBoxes[i].checked = false;
+                        break;
+                    }
+                }
+            }
+            
+            // 更新行的背景色
+            updateRowHighlights(date);
+            
+            // 更新价格计算
+            updatePriceCalculation();
+        }
+
+        function updateRowHighlights(date) {
+            // 获取所有该日期的checkbox
+            const checkboxes = document.querySelectorAll(`input[name="inventory_${date}"]`);
+            checkboxes.forEach(function(checkbox) {
+                const row = checkbox.closest('tr');
+                if (checkbox.checked) {
+                    row.classList.add('table-info');
+                } else {
+                    row.classList.remove('table-info');
+                }
+            });
+        }
+    </script>
+{% endblock %}

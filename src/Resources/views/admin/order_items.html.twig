@@ -1,0 +1,167 @@
+{# templates/admin/order_items.html.twig #}
+{% if field.value is not empty %}
+<div class="order-items-container">
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">
+                <i class="fa fa-bed"></i>
+                订单明细 (共 {{ field.value|length }} 项)
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th width="8%">序号</th>
+                            <th width="15%">酒店</th>
+                            <th width="12%">房型</th>
+                            <th width="10%">入住日期</th>
+                            <th width="10%">退房日期</th>
+                            <th width="10%">单价</th>
+                            <th width="10%">成本价</th>
+                            <th width="8%">金额</th>
+                            <th width="9%">状态</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% set totalAmount = 0 %}
+                        {% set totalCost = 0 %}
+                        {% set totalProfit = 0 %}
+                        {% for index, orderItem in field.value %}
+                            {# 计算各项金额 #}
+                            {% set itemAmount = orderItem.unitPrice %}
+                            {% set itemCost = orderItem.costPrice %}
+                            {% set itemProfit = itemAmount - itemCost %}
+                            {% set totalAmount = totalAmount + itemAmount %}
+                            {% set totalCost = totalCost + itemCost %}
+                            {% set totalProfit = totalProfit + itemProfit %}
+                            <tr>
+                                <td class="text-center">
+                                    <span class="badge badge-light">{{ index + 1 }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ orderItem.hotel.name }}</strong>
+                                    {% if orderItem.hotel.address %}
+                                        <br><small class="text-muted">{{ orderItem.hotel.address }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ orderItem.roomType.name }}</strong>
+                                    <br><small class="text-muted">{{ orderItem.roomType.bedType }}</small>
+                                    {% if orderItem.roomType.maxGuests %}
+                                        <br><small class="text-info">最多 {{ orderItem.roomType.maxGuests }} 人</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ orderItem.checkInDate|date('m-d') }}</strong>
+                                    <br><small class="text-muted">{{ orderItem.checkInDate|date('D') }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ orderItem.checkOutDate|date('m-d') }}</strong>
+                                    <br><small class="text-muted">{{ orderItem.checkOutDate|date('D') }}</small>
+                                </td>
+                                <td class="text-right">
+                                    <strong class="text-success">¥{{ orderItem.unitPrice|number_format(2) }}</strong>
+                                    {% if orderItem.dailyInventory and orderItem.dailyInventory.contract %}
+                                        <br><small class="text-muted">{{ orderItem.dailyInventory.contract.contractNo }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-right">
+                                    <span class="text-warning">¥{{ orderItem.costPrice|number_format(2) }}</span>
+                                    <br><small class="{{ itemProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                                        利润: ¥{{ itemProfit|number_format(2) }}
+                                    </small>
+                                </td>
+                                <td class="text-right">
+                                    <strong>¥{{ itemAmount|number_format(2) }}</strong>
+                                </td>
+                                <td class="text-center">
+                                    {% set statusClass = {
+                                        'pending': 'warning',
+                                        'confirmed': 'success', 
+                                        'checked_in': 'info',
+                                        'checked_out': 'secondary',
+                                        'canceled': 'danger'
+                                    }[orderItem.status.value] ?? 'light' %}
+                                    <span class="badge badge-{{ statusClass }}">
+                                        {{ orderItem.status.label }}
+                                    </span>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr class="font-weight-bold">
+                            <td colspan="5" class="text-right">总计:</td>
+                            <td class="text-right">
+                                <strong class="text-primary">¥{{ (totalAmount / field.value|length)|number_format(2) }}</strong>
+                                <br><small class="text-muted">平均单价</small>
+                            </td>
+                            <td class="text-right">
+                                <strong class="text-warning">¥{{ (totalCost / field.value|length)|number_format(2) }}</strong>
+                                <br><small class="text-muted">平均成本</small>
+                            </td>
+                            <td class="text-right">
+                                <strong class="text-success">¥{{ totalAmount|number_format(2) }}</strong>
+                            </td>
+                            <td class="text-center">
+                                <strong class="{{ totalProfit >= 0 ? 'text-success' : 'text-danger' }}">
+                                    ¥{{ totalProfit|number_format(2) }}
+                                </strong>
+                                <br><small class="text-muted">总利润</small>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    {% if field.value is not empty %}
+        <div class="row mt-3">
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h5 class="text-primary">{{ field.value|length }}</h5>
+                        <small class="text-muted">订单项数量</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        {% set uniqueDates = [] %}
+                        {% for orderItem in field.value %}
+                            {% if orderItem.checkInDate|date('Y-m-d') not in uniqueDates %}
+                                {% set uniqueDates = uniqueDates|merge([orderItem.checkInDate|date('Y-m-d')]) %}
+                            {% endif %}
+                        {% endfor %}
+                        <h5 class="text-success">{{ uniqueDates|length }}</h5>
+                        <small class="text-muted">住宿天数</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        {% set uniqueRoomTypes = [] %}
+                        {% for orderItem in field.value %}
+                            {% if orderItem.roomType.id not in uniqueRoomTypes %}
+                                {% set uniqueRoomTypes = uniqueRoomTypes|merge([orderItem.roomType.id]) %}
+                            {% endif %}
+                        {% endfor %}
+                        <h5 class="text-info">{{ uniqueRoomTypes|length }}</h5>
+                        <small class="text-muted">房型种类</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="fa fa-info-circle"></i>
+    该订单暂无明细项目
+</div>
+{% endif %}

@@ -34,6 +34,7 @@ use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelAgentBundle\Service\OrderCreationService;
 use Tourze\HotelAgentBundle\Service\OrderImportService;
 use Tourze\HotelAgentBundle\Service\OrderStatusService;
@@ -49,8 +50,9 @@ class OrderCrudController extends AbstractCrudController
         private readonly OrderImportService $orderImportService,
         private readonly OrderCreationService $orderCreationService,
         private readonly InventoryQueryService $inventoryQueryService,
+        private readonly AgentRepository $agentRepository,
         private readonly EntityManagerInterface $entityManager,
-        private readonly AdminUrlGenerator $adminUrlGenerator
+        private readonly AdminUrlGenerator $adminUrlGenerator,
     ) {
     }
 
@@ -252,7 +254,7 @@ class OrderCrudController extends AbstractCrudController
                 ->hideWhenUpdating();
 
             yield AssociationField::new('orderItems', '订单项')
-                ->setTemplatePath('admin/order_items.html.twig')
+                ->setTemplatePath('@HotelAgent/admin/order_items.html.twig')
                 ->formatValue(function ($value, $entity) {
                     // 预加载关联数据避免N+1查询
                     if ($entity instanceof Order && $value) {
@@ -468,7 +470,7 @@ class OrderCrudController extends AbstractCrudController
         }
 
         // 获取代理商列表
-        $agents = $this->entityManager->getRepository(\Tourze\HotelAgentBundle\Entity\Agent::class)->findAll();
+        $agents = $this->agentRepository->findAll();
 
         // 获取房型列表
         $roomTypes = $this->entityManager->getRepository(\Tourze\HotelProfileBundle\Entity\RoomType::class)->findBy(
@@ -476,7 +478,7 @@ class OrderCrudController extends AbstractCrudController
             ['hotel' => 'ASC', 'name' => 'ASC']
         );
 
-        return $this->render('admin/order_new.html.twig', [
+        return $this->render('@HotelAgent/admin/order_new.html.twig', [
             'agents' => $agents,
             'roomTypes' => $roomTypes,
         ]);

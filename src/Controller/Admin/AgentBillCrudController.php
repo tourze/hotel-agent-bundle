@@ -182,7 +182,7 @@ class AgentBillCrudController extends AbstractCrudController
         $bill = $context->getEntity()->getInstance();
         
         if (!$bill instanceof AgentBill) {
-            $this->addFlash('error', '无效的账单');
+            $this->addFlash('danger', '无效的账单');
             return $this->redirectToRoute('admin');
         }
 
@@ -191,7 +191,7 @@ class AgentBillCrudController extends AbstractCrudController
         if ($success) {
             $this->addFlash('success', '账单已确认');
         } else {
-            $this->addFlash('error', '账单确认失败');
+            $this->addFlash('danger', '账单确认失败');
         }
 
         return $this->redirect($this->adminUrlGenerator
@@ -208,7 +208,7 @@ class AgentBillCrudController extends AbstractCrudController
         $bill = $context->getEntity()->getInstance();
         
         if (!$bill instanceof AgentBill) {
-            $this->addFlash('error', '无效的账单');
+            $this->addFlash('danger', '无效的账单');
             return $this->redirectToRoute('admin');
         }
 
@@ -216,7 +216,7 @@ class AgentBillCrudController extends AbstractCrudController
             $this->agentBillService->recalculateBill($bill);
             $this->addFlash('success', '账单重新计算完成');
         } catch (\Exception $e) {
-            $this->addFlash('error', '账单重新计算失败：' . $e->getMessage());
+            $this->addFlash('danger', '账单重新计算失败：' . $e->getMessage());
         }
 
         return $this->redirect($this->adminUrlGenerator
@@ -236,13 +236,13 @@ class AgentBillCrudController extends AbstractCrudController
             $billMonth = $request->request->get('billMonth');
             
             if (empty($billMonth)) {
-                $this->addFlash('error', '请输入账单月份');
+                $this->addFlash('danger', '请输入账单月份');
             } else {
                 try {
                     $bills = $this->agentBillService->generateMonthlyBills($billMonth);
                     $this->addFlash('success', sprintf('成功生成 %d 个账单', count($bills)));
                 } catch (\Exception $e) {
-                    $this->addFlash('error', '批量生成账单失败：' . $e->getMessage());
+                    $this->addFlash('danger', '批量生成账单失败：' . $e->getMessage());
                 }
             }
 
@@ -266,7 +266,7 @@ class AgentBillCrudController extends AbstractCrudController
         $bill = $context->getEntity()->getInstance();
         
         if (!$bill instanceof AgentBill) {
-            $this->addFlash('error', '无效的账单');
+            $this->addFlash('danger', '无效的账单');
             return $this->redirectToRoute('admin');
         }
 

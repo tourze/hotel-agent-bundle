@@ -180,7 +180,7 @@ class PaymentCrudController extends AbstractCrudController
         $payment = $context->getEntity()->getInstance();
         
         if (!$payment instanceof Payment) {
-            $this->addFlash('error', '无效的支付记录');
+            $this->addFlash('danger', '无效的支付记录');
             return $this->redirectToRoute('admin');
         }
 
@@ -189,7 +189,7 @@ class PaymentCrudController extends AbstractCrudController
         if ($success) {
             $this->addFlash('success', '支付已标记为成功');
         } else {
-            $this->addFlash('error', '支付状态更新失败');
+            $this->addFlash('danger', '支付状态更新失败');
         }
 
         return $this->redirect($this->adminUrlGenerator
@@ -206,7 +206,7 @@ class PaymentCrudController extends AbstractCrudController
         $payment = $context->getEntity()->getInstance();
         
         if (!$payment instanceof Payment) {
-            $this->addFlash('error', '无效的支付记录');
+            $this->addFlash('danger', '无效的支付记录');
             return $this->redirectToRoute('admin');
         }
 
@@ -220,7 +220,7 @@ class PaymentCrudController extends AbstractCrudController
             if ($success) {
                 $this->addFlash('success', '支付已标记为失败');
             } else {
-                $this->addFlash('error', '支付状态更新失败');
+                $this->addFlash('danger', '支付状态更新失败');
             }
 
             return $this->redirect($this->adminUrlGenerator
@@ -243,7 +243,7 @@ class PaymentCrudController extends AbstractCrudController
         $payment = $context->getEntity()->getInstance();
         
         if (!$payment instanceof Payment) {
-            $this->addFlash('error', '无效的支付记录');
+            $this->addFlash('danger', '无效的支付记录');
             return $this->redirectToRoute('admin');
         }
 
@@ -252,7 +252,7 @@ class PaymentCrudController extends AbstractCrudController
         if ($success) {
             $this->addFlash('success', '支付已确认');
         } else {
-            $this->addFlash('error', '支付确认失败');
+            $this->addFlash('danger', '支付确认失败');
         }
 
         return $this->redirect($this->adminUrlGenerator

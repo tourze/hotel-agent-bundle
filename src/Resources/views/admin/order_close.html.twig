@@ -1,0 +1,149 @@
+{% extends '@EasyAdmin/layout.html.twig' %}
+
+{% block body_id 'order-close' %}
+
+{% block main %}
+    <h1 class="page-title">
+        <i class="fa fa-ban"></i>
+        关闭订单
+    </h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">订单信息</h3>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">订单编号：</dt>
+                        <dd class="col-sm-9">{{ order.orderNo }}</dd>
+                        
+                        <dt class="col-sm-3">代理商：</dt>
+                        <dd class="col-sm-9">{{ order.agent ? order.agent.companyName : '' }}</dd>
+                        
+                        <dt class="col-sm-3">订单金额：</dt>
+                        <dd class="col-sm-9">￥{{ order.totalAmount }}</dd>
+                        
+                        <dt class="col-sm-3">当前状态：</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge badge-success">
+                                {{ order.status.label }}
+                            </span>
+                        </dd>
+                        
+                        <dt class="col-sm-3">创建时间：</dt>
+                        <dd class="col-sm-9">{{ order.createTime|date('Y-m-d H:i:s') }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">关闭原因</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="form-group">
+                            <label for="reason">请输入关闭原因</label>
+                            <textarea class="form-control" 
+                                      id="reason" 
+                                      name="reason" 
+                                      rows="4" 
+                                      placeholder="请详细说明关闭订单的原因..."
+                                      required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fa fa-ban"></i>
+                                确认关闭订单
+                            </button>
+                            <a href="{{ ea_url() }}" class="btn btn-secondary">
+                                <i class="fa fa-arrow-left"></i>
+                                返回订单列表
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">关闭说明</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle"></i>
+                        <strong>说明：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>关闭订单不会释放库存</li>
+                            <li>订单状态将变更为"已关闭"</li>
+                            <li>关闭后可以重新激活订单</li>
+                            <li>关闭原因将记录在订单历史中</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">订单明细</h3>
+                </div>
+                <div class="card-body">
+                    {% if order.orderItems %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>酒店</th>
+                                        <th>房型</th>
+                                        <th>日期</th>
+                                        <th>房间数</th>
+                                        <th>状态</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in order.orderItems %}
+                                    <tr>
+                                        <td>{{ item.hotel.name|slice(0,10) }}...</td>
+                                        <td>{{ item.roomType.name }}</td>
+                                        <td>{{ item.checkInDate|date('m-d') }}~{{ item.checkOutDate|date('m-d') }}</td>
+                                        <td>1</td>
+                                        <td>
+                                            <span class="badge badge-{{ item.status.value == 'confirmed' ? 'success' : 'warning' }}">
+                                                {{ item.status.label }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">暂无订单明细</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">操作提醒</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        <strong>注意：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>关闭与取消不同</li>
+                            <li>关闭是临时暂停，可恢复</li>
+                            <li>如需彻底取消，请使用取消功能</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %} 

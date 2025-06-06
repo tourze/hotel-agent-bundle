@@ -402,7 +402,7 @@ class OrderCrudController extends AbstractCrudController
             }
         }
 
-        return $this->render('admin/order_close.html.twig', [
+        return $this->render('@HotelAgent/admin/order_close.html.twig', [
             'order' => $order,
         ]);
     }
@@ -410,7 +410,7 @@ class OrderCrudController extends AbstractCrudController
     /**
      * Excel导入订单
      */
-    #[AdminAction('import', 'admin_order_import')]
+    #[AdminAction('import', 'admin_order_import', methods: ['GET', 'POST'])]
     public function importOrders(Request $request): Response
     {
         if ($request->isMethod('POST')) {
@@ -439,7 +439,7 @@ class OrderCrudController extends AbstractCrudController
             }
         }
 
-        return $this->render('admin/order_import.html.twig');
+        return $this->render('@HotelAgent/admin/order_import.html.twig');
     }
 
     /**

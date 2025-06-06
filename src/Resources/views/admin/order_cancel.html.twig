@@ -1,0 +1,126 @@
+{% extends '@EasyAdmin/layout.html.twig' %}
+
+{% block body_id 'order-cancel' %}
+
+{% block main %}
+    <h1 class="page-title">
+        <i class="fa fa-times"></i>
+        取消订单
+    </h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">订单信息</h3>
+                </div>
+                <div class="card-body">
+                    <dl class="row">
+                        <dt class="col-sm-3">订单编号：</dt>
+                        <dd class="col-sm-9">{{ order.orderNo }}</dd>
+                        
+                        <dt class="col-sm-3">代理商：</dt>
+                        <dd class="col-sm-9">{{ order.agent ? order.agent.companyName : '' }}</dd>
+                        
+                        <dt class="col-sm-3">订单金额：</dt>
+                        <dd class="col-sm-9">￥{{ order.totalAmount }}</dd>
+                        
+                        <dt class="col-sm-3">当前状态：</dt>
+                        <dd class="col-sm-9">
+                            <span class="badge badge-{{ order.status.value == 'pending' ? 'warning' : 'success' }}">
+                                {{ order.status.label }}
+                            </span>
+                        </dd>
+                        
+                        <dt class="col-sm-3">创建时间：</dt>
+                        <dd class="col-sm-9">{{ order.createTime|date('Y-m-d H:i:s') }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">取消原因</h3>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="form-group">
+                            <label for="reason">请输入取消原因</label>
+                            <textarea class="form-control" 
+                                      id="reason" 
+                                      name="reason" 
+                                      rows="4" 
+                                      placeholder="请详细说明取消订单的原因..."
+                                      required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fa fa-times"></i>
+                                确认取消订单
+                            </button>
+                            <a href="{{ ea_url() }}" class="btn btn-secondary">
+                                <i class="fa fa-arrow-left"></i>
+                                返回订单列表
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">取消说明</h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        <strong>注意：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>取消后订单无法恢复</li>
+                            <li>已分配的库存将被释放</li>
+                            <li>退款金额将根据取消政策计算</li>
+                            <li>取消原因将记录在订单历史中</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">订单明细</h3>
+                </div>
+                <div class="card-body">
+                    {% if order.orderItems %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>酒店</th>
+                                        <th>房型</th>
+                                        <th>日期</th>
+                                        <th>房间数</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in order.orderItems %}
+                                    <tr>
+                                        <td>{{ item.hotel.name|slice(0,10) }}...</td>
+                                        <td>{{ item.roomType.name }}</td>
+                                        <td>{{ item.checkInDate|date('m-d') }}~{{ item.checkOutDate|date('m-d') }}</td>
+                                        <td>1</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">暂无订单明细</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %} 

@@ -360,7 +360,7 @@ class OrderCrudController extends AbstractCrudController
             }
         }
 
-        return $this->render('admin/order_cancel.html.twig', [
+        return $this->render('@HotelAgent/admin/order_cancel.html.twig', [
             'order' => $order,
         ]);
     }

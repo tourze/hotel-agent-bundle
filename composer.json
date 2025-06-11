@@ -28,6 +28,7 @@
     "symfony/routing": "^6.4",
     "symfony/security-core": "^6.4",
     "symfony/yaml": "^6.4 || ^7.1",
+    "tourze/bundle-dependency": "0.0.*",
     "tourze/doctrine-timestamp-bundle": "0.0.*",
     "tourze/doctrine-user-bundle": "0.0.*",
     "tourze/easy-admin-menu-bundle": "0.1.*",

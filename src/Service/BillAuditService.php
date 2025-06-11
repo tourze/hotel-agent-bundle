@@ -176,7 +176,7 @@ class BillAuditService
                 $this->logAuditAction($bill, $action, $remarks);
                 $results[$billId] = ['success' => true];
                 
-            } catch (\Throwable $e) {
+            } catch  (\Throwable $e) {
                 $results[$billId] = ['success' => false, 'error' => $e->getMessage()];
                 $this->logger->error('批量审核账单失败', [
                     'billId' => $billId,

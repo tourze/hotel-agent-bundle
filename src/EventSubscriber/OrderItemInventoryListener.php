@@ -89,7 +89,7 @@ class OrderItemInventoryListener
                 'updated_dates' => $updatedDates
             ]);
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             $this->logger->error('OrderItem 库存统计更新失败', [
                 'order_item_id' => $orderItem->getId(),
                 'operation' => $operation,

@@ -75,7 +75,7 @@ class BillReportController extends AbstractController
                 ]
             ]);
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -101,7 +101,7 @@ class BillReportController extends AbstractController
                 'data' => $report
             ]);
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -127,7 +127,7 @@ class BillReportController extends AbstractController
                 'data' => $statistics
             ]);
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -157,7 +157,7 @@ class BillReportController extends AbstractController
 
             throw new \InvalidArgumentException('不支持的导出格式');
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage()
@@ -221,7 +221,7 @@ class BillReportController extends AbstractController
 
             return $response;
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage()

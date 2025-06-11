@@ -313,7 +313,7 @@ class OrderCrudController extends AbstractCrudController
             $this->orderStatusService->confirmOrder($order, (int)$userId);
 
             $this->addFlash('success', '订单确认成功');
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             $this->addFlash('danger', '订单确认失败：' . $e->getMessage());
         }
 
@@ -354,7 +354,7 @@ class OrderCrudController extends AbstractCrudController
                         ->setController(self::class)
                         ->setAction(Action::INDEX)
                         ->generateUrl());
-                } catch (\Throwable $e) {
+                } catch  (\Throwable $e) {
                     $this->addFlash('danger', '订单取消失败：' . $e->getMessage());
                 }
             }
@@ -396,7 +396,7 @@ class OrderCrudController extends AbstractCrudController
                         ->setController(self::class)
                         ->setAction(Action::INDEX)
                         ->generateUrl());
-                } catch (\Throwable $e) {
+                } catch  (\Throwable $e) {
                     $this->addFlash('danger', '订单关闭失败：' . $e->getMessage());
                 }
             }
@@ -433,7 +433,7 @@ class OrderCrudController extends AbstractCrudController
                         ->setController(self::class)
                         ->setAction(Action::INDEX)
                         ->generateUrl());
-                } catch (\Throwable $e) {
+                } catch  (\Throwable $e) {
                     $this->addFlash('danger', '导入失败：' . $e->getMessage());
                 }
             }
@@ -459,7 +459,7 @@ class OrderCrudController extends AbstractCrudController
                     ->setAction(Action::INDEX)
                     ->generateUrl());
 
-            } catch (\Throwable $e) {
+            } catch  (\Throwable $e) {
                 $this->addFlash('danger', '订单创建失败：' . $e->getMessage());
 
                 // 如果是库存被占用的错误，给出更具体的提示
@@ -512,7 +512,7 @@ class OrderCrudController extends AbstractCrudController
                 'data' => $data
             ]);
 
-        } catch (\Throwable $e) {
+        } catch  (\Throwable $e) {
             return $this->json([
                 'success' => false,
                 'error' => $e->getMessage()

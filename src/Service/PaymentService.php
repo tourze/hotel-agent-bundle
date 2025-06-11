@@ -214,7 +214,7 @@ class PaymentService
                     'success' => $success,
                     'message' => $success ? '处理成功' : '处理失败'
                 ];
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 $results[$paymentId] = ['success' => false, 'message' => $e->getMessage()];
             }
         }

@@ -71,7 +71,7 @@ class OrderImportService
                         $successCount++;
                     }
                     
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $errorCount++;
                     $errors[] = "第 {$row} 行导入失败: " . $e->getMessage();
                     $this->logger->warning('订单导入失败', [
@@ -92,7 +92,7 @@ class OrderImportService
                 'operator_id' => $operatorId,
             ]);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单导入失败', [
                 'file' => $fileName,
@@ -265,7 +265,7 @@ class OrderImportService
         if (is_string($value)) {
             try {
                 return new \DateTime($value);
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 throw new \InvalidArgumentException("{$fieldName}格式不正确: {$value}");
             }
         }

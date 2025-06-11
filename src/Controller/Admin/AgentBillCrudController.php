@@ -215,7 +215,7 @@ class AgentBillCrudController extends AbstractCrudController
         try {
             $this->agentBillService->recalculateBill($bill);
             $this->addFlash('success', '账单重新计算完成');
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->addFlash('danger', '账单重新计算失败：' . $e->getMessage());
         }
 
@@ -241,7 +241,7 @@ class AgentBillCrudController extends AbstractCrudController
                 try {
                     $bills = $this->agentBillService->generateMonthlyBills($billMonth);
                     $this->addFlash('success', sprintf('成功生成 %d 个账单', count($bills)));
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $this->addFlash('danger', '批量生成账单失败：' . $e->getMessage());
                 }
             }
@@ -290,7 +290,7 @@ class AgentBillCrudController extends AbstractCrudController
                 // 新建成功后自动计算账单数据
                 try {
                     $this->agentBillService->recalculateBill($bill);
-                } catch (\Exception $e) {
+                } catch (\Throwable $e) {
                     $this->addFlash('warning', '账单创建成功，但计算失败：' . $e->getMessage());
                 }
             }

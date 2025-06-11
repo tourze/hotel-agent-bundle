@@ -285,7 +285,7 @@ class OrderCreationService
 
             return $order;
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $this->entityManager->rollback();
             throw $e;
         }

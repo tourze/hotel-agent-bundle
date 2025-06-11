@@ -153,7 +153,7 @@ class GenerateMonthlyBillsCommand extends Command
 
             return Command::SUCCESS;
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             $io->error('生成账单时发生错误: ' . $e->getMessage());
             $this->logger->error('月结账单生成失败', [
                 'billMonth' => $billMonth,

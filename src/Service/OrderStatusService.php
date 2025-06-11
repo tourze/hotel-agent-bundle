@@ -70,7 +70,7 @@ class OrderStatusService
                 'operator_id' => $operatorId,
             ]);
 
-        } catch  (\Throwable $e) {
+        } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单确认失败', [
                 'order_id' => $order->getId(),
@@ -127,7 +127,7 @@ class OrderStatusService
                 'operator_id' => $operatorId,
             ]);
             
-        } catch  (\Throwable $e) {
+        } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单取消失败', [
                 'order_id' => $order->getId(),
@@ -184,7 +184,7 @@ class OrderStatusService
                 'operator_id' => $operatorId,
             ]);
             
-        } catch  (\Throwable $e) {
+        } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单关闭失败', [
                 'order_id' => $order->getId(),
@@ -287,7 +287,7 @@ class OrderStatusService
                 'updated_dates' => array_unique($updatedDates)
             ]);
             
-        } catch  (\Throwable $e) {
+        } catch (\Throwable $e) {
             // 库存统计更新失败不影响订单操作，只记录日志
             $this->logger->error('订单库存统计更新失败', [
                 'order_id' => $order->getId(),

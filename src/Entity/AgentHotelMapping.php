@@ -5,8 +5,7 @@ namespace Tourze\HotelAgentBundle\Entity;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\UpdateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
 use Tourze\HotelAgentBundle\Repository\AgentHotelMappingRepository;
 use Tourze\HotelProfileBundle\Entity\Hotel;
@@ -16,6 +15,7 @@ use Tourze\HotelProfileBundle\Entity\Hotel;
 #[ORM\Index(columns: ['agent_id', 'hotel_id'], name: 'agent_hotel_mapping_idx_agent_hotel')]
 class AgentHotelMapping implements Stringable
 {
+    use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -30,17 +30,7 @@ class AgentHotelMapping implements Stringable
     private ?Hotel $hotel = null;
 
     #[ORM\Column(type: Types::JSON, options: ['comment' => '可见房型ID数组'])]
-    private array $roomTypeIds = [];
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
-
-    #[UpdateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $updateTime = null;
-
-    #[CreatedByColumn]
+    private array $roomTypeIds = [];#[CreatedByColumn]
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $createdBy = null;
 
@@ -106,30 +96,7 @@ class AgentHotelMapping implements Stringable
     public function hasRoomTypeId(int $roomTypeId): bool
     {
         return in_array($roomTypeId, $this->roomTypeIds);
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function getUpdateTime(): ?\DateTimeInterface
-    {
-        return $this->updateTime;
-    }
-
-    public function getCreatedBy(): ?int
+    }public function getCreatedBy(): ?int
     {
         return $this->createdBy;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
-    }
-
-    public function setUpdateTime(?\DateTimeInterface $updateTime): void
-    {
-        $this->updateTime = $updateTime;
-    }
-} 
+    }} 

@@ -5,8 +5,7 @@ namespace Tourze\HotelAgentBundle\Entity;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\UpdateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
 use Tourze\HotelAgentBundle\Enum\PaymentMethodEnum;
 use Tourze\HotelAgentBundle\Enum\PaymentStatusEnum;
@@ -19,6 +18,7 @@ use Tourze\HotelAgentBundle\Repository\PaymentRepository;
 #[ORM\Index(name: 'payment_idx_method', columns: ['payment_method'])]
 class Payment implements Stringable
 {
+    use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -59,17 +59,7 @@ class Payment implements Stringable
     private ?string $remarks = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '失败原因'])]
-    private ?string $failureReason = null;
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
-
-    #[UpdateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $updateTime = null;
-
-    #[CreatedByColumn]
+    private ?string $failureReason = null;#[CreatedByColumn]
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $createdBy = null;
 
@@ -213,19 +203,7 @@ class Payment implements Stringable
     {
         $this->failureReason = $failureReason;
         return $this;
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function getUpdateTime(): ?\DateTimeInterface
-    {
-        return $this->updateTime;
-    }
-
-    public function getCreatedBy(): ?int
+    }public function getCreatedBy(): ?int
     {
         return $this->createdBy;
     }
@@ -273,15 +251,4 @@ class Payment implements Stringable
             $this->paymentNo = 'PAY' . date('YmdHis') . rand(1000, 9999);
         }
         return $this;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
-    }
-
-    public function setUpdateTime(?\DateTimeInterface $updateTime): void
-    {
-        $this->updateTime = $updateTime;
-    }
-} 
+    }} 

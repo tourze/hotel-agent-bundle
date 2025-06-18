@@ -8,8 +8,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\UpdateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
 use Tourze\HotelAgentBundle\Enum\AgentLevelEnum;
 use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
@@ -21,6 +20,7 @@ use Tourze\HotelAgentBundle\Repository\AgentRepository;
 #[ORM\Index(name: 'agent_idx_status', columns: ['status'])]
 class Agent implements Stringable
 {
+    use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -62,17 +62,7 @@ class Agent implements Stringable
     private AgentStatusEnum $status = AgentStatusEnum::ACTIVE;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true, options: ['comment' => '账户有效期'])]
-    private ?\DateTimeInterface $expiryDate = null;
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
-
-    #[UpdateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $updateTime = null;
-
-    #[CreatedByColumn]
+    private ?\DateTimeInterface $expiryDate = null;#[CreatedByColumn]
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $createdBy = null;
 
@@ -222,19 +212,7 @@ class Agent implements Stringable
     {
         $this->expiryDate = $expiryDate;
         return $this;
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function getUpdateTime(): ?\DateTimeInterface
-    {
-        return $this->updateTime;
-    }
-
-    public function getCreatedBy(): ?int
+    }public function getCreatedBy(): ?int
     {
         return $this->createdBy;
     }
@@ -356,15 +334,4 @@ class Agent implements Stringable
     public function isActive(): bool
     {
         return $this->status === AgentStatusEnum::ACTIVE && !$this->isExpired();
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
-    }
-
-    public function setUpdateTime(?\DateTimeInterface $updateTime): void
-    {
-        $this->updateTime = $updateTime;
-    }
-} 
+    }} 

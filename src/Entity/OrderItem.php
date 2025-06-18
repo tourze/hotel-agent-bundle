@@ -7,8 +7,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\UpdateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
 use Tourze\HotelAgentBundle\Repository\OrderItemRepository;
 use Tourze\HotelContractBundle\Entity\DailyInventory;
@@ -27,6 +26,7 @@ use Tourze\HotelProfileBundle\Entity\RoomType;
 #[ORM\Index(name: 'order_item_idx_contract', columns: ['contract_id'])]
 class OrderItem implements Stringable
 {
+    use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -80,17 +80,7 @@ class OrderItem implements Stringable
     private ?array $contractChangeHistory = [];
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '合同切换原因'])]
-    private ?string $contractChangeReason = null;
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
-
-    #[UpdateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $updateTime = null;
-
-    #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '最后修改人ID'])]
+    private ?string $contractChangeReason = null;#[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '最后修改人ID'])]
     private ?int $lastModifiedBy = null;
 
     public function __construct()
@@ -277,19 +267,7 @@ class OrderItem implements Stringable
     {
         $this->contractChangeReason = $contractChangeReason;
         return $this;
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function getUpdateTime(): ?\DateTimeInterface
-    {
-        return $this->updateTime;
-    }
-
-    public function getLastModifiedBy(): ?int
+    }public function getLastModifiedBy(): ?int
     {
         return $this->lastModifiedBy;
     }
@@ -394,15 +372,4 @@ class OrderItem implements Stringable
     {
         $this->status = OrderItemStatusEnum::COMPLETED;
         return $this;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
-    }
-
-    public function setUpdateTime(?\DateTimeInterface $updateTime): void
-    {
-        $this->updateTime = $updateTime;
-    }
-}
+    }}

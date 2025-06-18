@@ -9,8 +9,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\UpdateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
@@ -24,6 +23,7 @@ use Tourze\HotelAgentBundle\Repository\OrderRepository;
 #[ORM\Index(name: 'order_idx_audit_status', columns: ['audit_status'])]
 class Order implements Stringable
 {
+    use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -71,17 +71,7 @@ class Order implements Stringable
     private AuditStatusEnum $auditStatus = AuditStatusEnum::APPROVED;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '审核备注'])]
-    private ?string $auditRemark = null;
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
-
-    #[UpdateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $updateTime = null;
-
-    #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '创建人ID'])]
+    private ?string $auditRemark = null;#[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '创建人ID'])]
     private ?int $createdBy = null;
 
     #[ORM\OneToMany(targetEntity: OrderItem::class, mappedBy: 'order', cascade: ['persist', 'remove'], orphanRemoval: true)]
@@ -268,19 +258,7 @@ class Order implements Stringable
     {
         $this->auditRemark = $auditRemark;
         return $this;
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function getUpdateTime(): ?\DateTimeInterface
-    {
-        return $this->updateTime;
-    }
-
-    public function getCreatedBy(): ?int
+    }public function getCreatedBy(): ?int
     {
         return $this->createdBy;
     }
@@ -424,15 +402,4 @@ class Order implements Stringable
         ], $operatorId);
 
         return $this;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
-    }
-
-    public function setUpdateTime(?\DateTimeInterface $updateTime): void
-    {
-        $this->updateTime = $updateTime;
-    }
-}
+    }}

@@ -6,8 +6,7 @@ use Brick\Math\BigDecimal;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
-use Tourze\DoctrineTimestampBundle\Attribute\UpdateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
@@ -19,6 +18,7 @@ use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
 #[ORM\Index(name: 'agent_bill_idx_status', columns: ['status'])]
 class AgentBill implements Stringable
 {
+    use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -59,17 +59,7 @@ class AgentBill implements Stringable
     private ?string $paymentReference = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '备注'])]
-    private ?string $remarks = null;
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
-
-    #[UpdateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true)]
-    private ?\DateTimeInterface $updateTime = null;
-
-    #[CreatedByColumn]
+    private ?string $remarks = null;#[CreatedByColumn]
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
     private ?int $createdBy = null;
 
@@ -214,19 +204,7 @@ class AgentBill implements Stringable
     {
         $this->remarks = $remarks;
         return $this;
-    }
-
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
-    public function getUpdateTime(): ?\DateTimeInterface
-    {
-        return $this->updateTime;
-    }
-
-    public function getCreatedBy(): ?int
+    }public function getCreatedBy(): ?int
     {
         return $this->createdBy;
     }
@@ -268,15 +246,4 @@ class AgentBill implements Stringable
         $commissionAmount = $totalAmount->multipliedBy($commissionRate)->toScale(2, \Brick\Math\RoundingMode::HALF_UP);
         $this->commissionAmount = $commissionAmount->__toString();
         return $this;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
-    }
-
-    public function setUpdateTime(?\DateTimeInterface $updateTime): void
-    {
-        $this->updateTime = $updateTime;
-    }
-}
+    }}

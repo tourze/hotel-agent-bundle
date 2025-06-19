@@ -71,8 +71,6 @@ class BillStatusEnumTest extends TestCase
         foreach (BillStatusEnum::cases() as $case) {
             $items[$case->value] = $case->getLabel();
         }
-
-        $this->assertIsArray($items);
         $this->assertSame('待确认', $items['pending']);
         $this->assertSame('已确认', $items['confirmed']);
         $this->assertSame('已支付', $items['paid']);
@@ -82,7 +80,6 @@ class BillStatusEnumTest extends TestCase
     {
         foreach (BillStatusEnum::cases() as $case) {
             $label = $case->getLabel();
-            $this->assertIsString($label);
             $this->assertNotEmpty($label);
         }
     }

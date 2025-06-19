@@ -5,7 +5,7 @@ namespace Tourze\HotelAgentBundle\Entity;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
-use Tourze\DoctrineTimestampBundle\Attribute\CreateTimeColumn;
+use Tourze\DoctrineTimestampBundle\Traits\CreateTimeAware;
 use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
@@ -20,6 +20,8 @@ use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
 #[ORM\Index(name: 'bill_audit_log_idx_create_time', columns: ['create_time'])]
 class BillAuditLog implements Stringable
 {
+    use CreateTimeAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT)]
@@ -49,10 +51,6 @@ class BillAuditLog implements Stringable
 
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, options: ['comment' => 'IP地址'])]
     private ?string $ipAddress = null;
-
-    #[CreateTimeColumn]
-    #[ORM\Column(type: Types::DATETIME_MUTABLE)]
-    private ?\DateTimeInterface $createTime = null;
 
     #[CreatedByColumn]
     #[ORM\Column(type: Types::BIGINT, nullable: true)]
@@ -156,19 +154,9 @@ class BillAuditLog implements Stringable
         return $this;
     }
 
-    public function getCreateTime(): ?\DateTimeInterface
-    {
-        return $this->createTime;
-    }
-
     public function getCreatedBy(): ?int
     {
         return $this->createdBy;
-    }
-
-    public function setCreateTime(?\DateTimeInterface $createTime): void
-    {
-        $this->createTime = $createTime;
     }
 
     /**

@@ -88,7 +88,6 @@ class AgentLevelEnumTest extends TestCase
     {
         foreach (AgentLevelEnum::cases() as $case) {
             $label = $case->getLabel();
-            $this->assertIsString($label);
             $this->assertNotEmpty($label);
         }
     }

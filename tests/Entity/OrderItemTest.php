@@ -30,13 +30,13 @@ class OrderItemTest extends TestCase
     {
         $hotel = $this->createMock(Hotel::class);
         $hotel->method('getName')->willReturn('测试酒店');
-        
+
         $roomType = $this->createMock(RoomType::class);
         $roomType->method('getName')->willReturn('标准间');
-        
+
         $checkIn = new \DateTime('2024-01-01');
         $checkOut = new \DateTime('2024-01-02');
-        
+
         $this->orderItem->setHotel($hotel)
             ->setRoomType($roomType)
             ->setCheckInDate($checkIn)
@@ -49,7 +49,7 @@ class OrderItemTest extends TestCase
     {
         $checkIn = new \DateTime('2024-01-01');
         $checkOut = new \DateTime('2024-01-02');
-        
+
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut);
 
@@ -60,7 +60,7 @@ class OrderItemTest extends TestCase
     {
         $hotel = $this->createMock(Hotel::class);
         $hotel->method('getName')->willReturn('测试酒店');
-        
+
         $this->orderItem->setHotel($hotel);
 
         $this->assertSame('测试酒店, Unknown, ', $this->orderItem->__toString());
@@ -236,12 +236,12 @@ class OrderItemTest extends TestCase
     {
         $oldContract = $this->createMock(HotelContract::class);
         $oldContract->method('getId')->willReturn(1);
-        
+
         $newContract = $this->createMock(HotelContract::class);
         $newContract->method('getId')->willReturn(2);
-        
+
         $this->orderItem->setContract($oldContract);
-        
+
         $result = $this->orderItem->changeContract($newContract, '价格调整', 123);
 
         $this->assertSame($this->orderItem, $result);
@@ -261,7 +261,7 @@ class OrderItemTest extends TestCase
     {
         $newContract = $this->createMock(HotelContract::class);
         $newContract->method('getId')->willReturn(2);
-        
+
         $this->orderItem->changeContract($newContract, '初次分配', 123);
 
         $history = $this->orderItem->getContractChangeHistory();
@@ -295,7 +295,7 @@ class OrderItemTest extends TestCase
 
     public function test_setCreateTime_sets_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
 
         $this->orderItem->setCreateTime($time);
 
@@ -304,7 +304,7 @@ class OrderItemTest extends TestCase
 
     public function test_setUpdateTime_sets_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
 
         $this->orderItem->setUpdateTime($time);
 
@@ -355,4 +355,4 @@ class OrderItemTest extends TestCase
         $this->assertNull($this->orderItem->getUpdateTime());
         $this->assertNull($this->orderItem->getLastModifiedBy());
     }
-} 
+}

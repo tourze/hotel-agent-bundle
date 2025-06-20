@@ -22,7 +22,7 @@ class AgentTest extends TestCase
     public function test_construct_initializes_collections(): void
     {
         $agent = new Agent();
-        
+
         $this->assertCount(0, $agent->getHotelMappings());
         $this->assertCount(0, $agent->getOrders());
         $this->assertCount(0, $agent->getBills());
@@ -31,72 +31,72 @@ class AgentTest extends TestCase
     public function test_toString_returns_company_name_and_code(): void
     {
         $this->agent->setCompanyName('测试公司')->setCode('AGT001');
-        
-        $result = (string) $this->agent;
-        
+
+        $result = (string)$this->agent;
+
         $this->assertSame('测试公司 (AGT001)', $result);
     }
 
     public function test_toString_with_empty_values(): void
     {
-        $result = (string) $this->agent;
-        
+        $result = (string)$this->agent;
+
         $this->assertSame(' ()', $result);
     }
 
     public function test_setUserId_with_valid_value(): void
     {
         $this->agent->setUserId(123);
-        
+
         $this->assertSame(123, $this->agent->getUserId());
     }
 
     public function test_setUserId_with_null(): void
     {
         $this->agent->setUserId(null);
-        
+
         $this->assertNull($this->agent->getUserId());
     }
 
     public function test_setCode_with_valid_code(): void
     {
         $this->agent->setCode('AGT20250101');
-        
+
         $this->assertSame('AGT20250101', $this->agent->getCode());
     }
 
     public function test_setCompanyName_with_valid_name(): void
     {
         $this->agent->setCompanyName('北京测试公司');
-        
+
         $this->assertSame('北京测试公司', $this->agent->getCompanyName());
     }
 
     public function test_setContactPerson_with_valid_name(): void
     {
         $this->agent->setContactPerson('张三');
-        
+
         $this->assertSame('张三', $this->agent->getContactPerson());
     }
 
     public function test_setPhone_with_valid_phone(): void
     {
         $this->agent->setPhone('13800138000');
-        
+
         $this->assertSame('13800138000', $this->agent->getPhone());
     }
 
     public function test_setEmail_with_valid_email(): void
     {
         $this->agent->setEmail('test@example.com');
-        
+
         $this->assertSame('test@example.com', $this->agent->getEmail());
     }
 
     public function test_setEmail_with_null(): void
     {
         $this->agent->setEmail(null);
-        
+
         $this->assertNull($this->agent->getEmail());
     }
 
@@ -104,14 +104,14 @@ class AgentTest extends TestCase
     {
         $url = 'https://example.com/license.jpg';
         $this->agent->setLicenseUrl($url);
-        
+
         $this->assertSame($url, $this->agent->getLicenseUrl());
     }
 
     public function test_setLevel_automatically_updates_commission_rate(): void
     {
         $this->agent->setLevel(AgentLevelEnum::A);
-        
+
         $this->assertSame(AgentLevelEnum::A, $this->agent->getLevel());
         $this->assertSame('0.10', $this->agent->getCommissionRate());
     }
@@ -119,28 +119,28 @@ class AgentTest extends TestCase
     public function test_setLevel_b_updates_commission_rate(): void
     {
         $this->agent->setLevel(AgentLevelEnum::B);
-        
+
         $this->assertSame('0.08', $this->agent->getCommissionRate());
     }
 
     public function test_setLevel_c_updates_commission_rate(): void
     {
         $this->agent->setLevel(AgentLevelEnum::C);
-        
+
         $this->assertSame('0.05', $this->agent->getCommissionRate());
     }
 
     public function test_setCommissionRate_with_valid_rate(): void
     {
         $this->agent->setCommissionRate('0.15');
-        
+
         $this->assertSame('0.15', $this->agent->getCommissionRate());
     }
 
     public function test_setStatus_with_valid_status(): void
     {
         $this->agent->setStatus(AgentStatusEnum::FROZEN);
-        
+
         $this->assertSame(AgentStatusEnum::FROZEN, $this->agent->getStatus());
     }
 
@@ -148,23 +148,23 @@ class AgentTest extends TestCase
     {
         $date = new \DateTime('2025-12-31');
         $this->agent->setExpiryDate($date);
-        
+
         $this->assertSame($date, $this->agent->getExpiryDate());
     }
 
     public function test_setExpiryDate_with_null(): void
     {
         $this->agent->setExpiryDate(null);
-        
+
         $this->assertNull($this->agent->getExpiryDate());
     }
 
     public function test_addHotelMapping_adds_new_mapping(): void
     {
         $mapping = new AgentHotelMapping();
-        
+
         $result = $this->agent->addHotelMapping($mapping);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertTrue($this->agent->getHotelMappings()->contains($mapping));
         $this->assertSame($this->agent, $mapping->getAgent());
@@ -174,9 +174,9 @@ class AgentTest extends TestCase
     {
         $mapping = new AgentHotelMapping();
         $this->agent->addHotelMapping($mapping);
-        
+
         $this->agent->addHotelMapping($mapping);
-        
+
         $this->assertCount(1, $this->agent->getHotelMappings());
     }
 
@@ -184,9 +184,9 @@ class AgentTest extends TestCase
     {
         $mapping = new AgentHotelMapping();
         $this->agent->addHotelMapping($mapping);
-        
+
         $result = $this->agent->removeHotelMapping($mapping);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertFalse($this->agent->getHotelMappings()->contains($mapping));
         $this->assertNull($mapping->getAgent());
@@ -195,9 +195,9 @@ class AgentTest extends TestCase
     public function test_removeHotelMapping_with_non_existing_mapping(): void
     {
         $mapping = new AgentHotelMapping();
-        
+
         $result = $this->agent->removeHotelMapping($mapping);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertCount(0, $this->agent->getHotelMappings());
     }
@@ -205,9 +205,9 @@ class AgentTest extends TestCase
     public function test_addOrder_adds_new_order(): void
     {
         $order = new Order();
-        
+
         $result = $this->agent->addOrder($order);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertTrue($this->agent->getOrders()->contains($order));
         $this->assertSame($this->agent, $order->getAgent());
@@ -217,9 +217,9 @@ class AgentTest extends TestCase
     {
         $order = new Order();
         $this->agent->addOrder($order);
-        
+
         $result = $this->agent->removeOrder($order);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertFalse($this->agent->getOrders()->contains($order));
         $this->assertNull($order->getAgent());
@@ -228,9 +228,9 @@ class AgentTest extends TestCase
     public function test_addBill_adds_new_bill(): void
     {
         $bill = new AgentBill();
-        
+
         $result = $this->agent->addBill($bill);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertTrue($this->agent->getBills()->contains($bill));
         $this->assertSame($this->agent, $bill->getAgent());
@@ -240,9 +240,9 @@ class AgentTest extends TestCase
     {
         $bill = new AgentBill();
         $this->agent->addBill($bill);
-        
+
         $result = $this->agent->removeBill($bill);
-        
+
         $this->assertSame($this->agent, $result);
         $this->assertFalse($this->agent->getBills()->contains($bill));
         $this->assertNull($bill->getAgent());
@@ -251,7 +251,7 @@ class AgentTest extends TestCase
     public function test_isExpired_returns_false_when_no_expiry_date(): void
     {
         $this->agent->setExpiryDate(null);
-        
+
         $this->assertFalse($this->agent->isExpired());
     }
 
@@ -259,7 +259,7 @@ class AgentTest extends TestCase
     {
         $expiredDate = new \DateTime('-1 day');
         $this->agent->setExpiryDate($expiredDate);
-        
+
         $this->assertTrue($this->agent->isExpired());
     }
 
@@ -267,7 +267,7 @@ class AgentTest extends TestCase
     {
         $futureDate = new \DateTime('+1 day');
         $this->agent->setExpiryDate($futureDate);
-        
+
         $this->assertFalse($this->agent->isExpired());
     }
 
@@ -275,7 +275,7 @@ class AgentTest extends TestCase
     {
         $this->agent->setStatus(AgentStatusEnum::ACTIVE);
         $this->agent->setExpiryDate(new \DateTime('+1 day'));
-        
+
         $this->assertTrue($this->agent->isActive());
     }
 
@@ -283,7 +283,7 @@ class AgentTest extends TestCase
     {
         $this->agent->setStatus(AgentStatusEnum::FROZEN);
         $this->agent->setExpiryDate(new \DateTime('+1 day'));
-        
+
         $this->assertFalse($this->agent->isActive());
     }
 
@@ -291,7 +291,7 @@ class AgentTest extends TestCase
     {
         $this->agent->setStatus(AgentStatusEnum::ACTIVE);
         $this->agent->setExpiryDate(new \DateTime('-1 day'));
-        
+
         $this->assertFalse($this->agent->isActive());
     }
 
@@ -299,13 +299,13 @@ class AgentTest extends TestCase
     {
         $this->agent->setStatus(AgentStatusEnum::ACTIVE);
         $this->agent->setExpiryDate(null);
-        
+
         $this->assertTrue($this->agent->isActive());
     }
 
     public function test_setCreateTime_sets_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         $this->agent->setCreateTime($time);
 
         $this->assertSame($time, $this->agent->getCreateTime());
@@ -313,7 +313,7 @@ class AgentTest extends TestCase
 
     public function test_setUpdateTime_sets_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         $this->agent->setUpdateTime($time);
 
         $this->assertSame($time, $this->agent->getUpdateTime());

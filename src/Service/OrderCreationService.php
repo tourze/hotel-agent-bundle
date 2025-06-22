@@ -11,9 +11,12 @@ use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelContractBundle\Entity\DailyInventory;
 use Tourze\HotelContractBundle\Enum\DailyInventoryStatusEnum;
+use Tourze\HotelContractBundle\Repository\DailyInventoryRepository;
 use Tourze\HotelProfileBundle\Entity\RoomType;
+use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
 
 /**
  * 订单创建服务
@@ -21,9 +24,11 @@ use Tourze\HotelProfileBundle\Entity\RoomType;
 class OrderCreationService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager
-    ) {
-    }
+        private readonly EntityManagerInterface $entityManager,
+        private readonly AgentRepository $agentRepository,
+        private readonly RoomTypeRepository $roomTypeRepository,
+        private readonly DailyInventoryRepository $dailyInventoryRepository
+    ) {}
 
     /**
      * 验证订单创建数据
@@ -48,17 +53,17 @@ class OrderCreationService
         // 方式1：检查 selected_inventories 数组格式（推荐）
         if (isset($formData['selected_inventories']) && is_array($formData['selected_inventories'])) {
             // 根据入住日期和退房日期确定每天需要的库存数量
-            $checkInDate = new \DateTime($formData['check_in_date']);
-            $checkOutDate = new \DateTime($formData['check_out_date']);
+            $checkInDate = new \DateTimeImmutable($formData['check_in_date']);
+            $checkOutDate = new \DateTimeImmutable($formData['check_out_date']);
             $roomCount = (int)$formData['room_count'];
-            
+
             $inventoryIndex = 0;
-            $currentDate = clone $checkInDate;
-            
+            $currentDate = $checkInDate;
+
             while ($currentDate < $checkOutDate) {
                 $dateStr = $currentDate->format('Y-m-d');
                 $selectedInventories[$dateStr] = [];
-                
+
                 // 为这一天分配对应数量的库存
                 for ($i = 0; $i < $roomCount; $i++) {
                     if (isset($formData['selected_inventories'][$inventoryIndex])) {
@@ -66,8 +71,8 @@ class OrderCreationService
                         $inventoryIndex++;
                     }
                 }
-                
-                $currentDate->modify('+1 day');
+
+                $currentDate = $currentDate->modify('+1 day');
             }
         } else {
             // 方式2：兼容旧的 inventory_日期 格式
@@ -94,8 +99,8 @@ class OrderCreationService
      */
     public function findAndValidateAgent(int $agentId): Agent
     {
-        $agent = $this->entityManager->getRepository(Agent::class)->find($agentId);
-        if (!$agent) {
+        $agent = $this->agentRepository->find($agentId);
+        if (null === $agent) {
             throw new \Exception('代理商不存在');
         }
         return $agent;
@@ -106,8 +111,8 @@ class OrderCreationService
      */
     public function findAndValidateRoomType(int $roomTypeId): RoomType
     {
-        $roomType = $this->entityManager->getRepository(RoomType::class)->find($roomTypeId);
-        if (!$roomType) {
+        $roomType = $this->roomTypeRepository->find($roomTypeId);
+        if (null === $roomType) {
             throw new \Exception('房型不存在');
         }
         return $roomType;
@@ -116,7 +121,7 @@ class OrderCreationService
     /**
      * 验证日期范围
      */
-    public function validateDateRange(\DateTime $checkInDate, \DateTime $checkOutDate): void
+    public function validateDateRange(\DateTimeImmutable $checkInDate, \DateTimeImmutable $checkOutDate): void
     {
         if ($checkOutDate <= $checkInDate) {
             throw new \Exception('退房日期必须晚于入住日期');
@@ -152,16 +157,18 @@ class OrderCreationService
         RoomType $roomType,
         string $dateStr
     ): DailyInventory {
-        $dailyInventory = $this->entityManager->getRepository(DailyInventory::class)
+        $dailyInventory = $this->dailyInventoryRepository
             ->find($inventoryId);
 
-        if (!$dailyInventory) {
+        if (null === $dailyInventory) {
             throw new \Exception("日期 {$dateStr} 选择的库存不存在");
         }
 
         // 验证库存是否匹配房型和日期
-        if ($dailyInventory->getRoomType()->getId() !== $roomType->getId() ||
-            $dailyInventory->getDate()->format('Y-m-d') !== $dateStr) {
+        if (
+            $dailyInventory->getRoomType()->getId() !== $roomType->getId() ||
+            $dailyInventory->getDate()->format('Y-m-d') !== $dateStr
+        ) {
             throw new \Exception("日期 {$dateStr} 选择的库存不匹配");
         }
 
@@ -183,16 +190,16 @@ class OrderCreationService
     public function createOrderItem(
         Order $order,
         RoomType $roomType,
-        \DateTime $checkInDate,
-        \DateTime $checkOutDate,
+        \DateTimeImmutable $checkInDate,
+        \DateTimeImmutable $checkOutDate,
         DailyInventory $dailyInventory
     ): OrderItem {
         $orderItem = new OrderItem();
         $orderItem->setOrder($order);
         $orderItem->setHotel($roomType->getHotel());
         $orderItem->setRoomType($roomType);
-        $orderItem->setCheckInDate(clone $checkInDate);
-        $orderItem->setCheckOutDate(clone $checkOutDate);
+        $orderItem->setCheckInDate($checkInDate);
+        $orderItem->setCheckOutDate($checkOutDate);
         $orderItem->setStatus(OrderItemStatusEnum::PENDING);
         $orderItem->setDailyInventory($dailyInventory);
         $orderItem->setContract($dailyInventory->getContract());
@@ -215,8 +222,8 @@ class OrderCreationService
 
         $agentId = (int)$formData['agent_id'];
         $roomTypeId = (int)$formData['room_type_id'];
-        $checkInDate = new \DateTime($formData['check_in_date']);
-        $checkOutDate = new \DateTime($formData['check_out_date']);
+        $checkInDate = new \DateTimeImmutable($formData['check_in_date']);
+        $checkOutDate = new \DateTimeImmutable($formData['check_out_date']);
         $roomCount = (int)$formData['room_count'];
         $remark = $formData['remark'] ?? '';
 
@@ -229,14 +236,14 @@ class OrderCreationService
         $selectedInventories = $this->parseSelectedInventories($formData);
 
         $this->entityManager->beginTransaction();
-        
+
         try {
             // 创建订单
             $order = $this->createOrder($agent, $remark);
             $totalOrderAmount = BigDecimal::zero();
 
             // 逐日创建订单项
-            $currentDate = clone $checkInDate;
+            $currentDate = $checkInDate;
             while ($currentDate < $checkOutDate) {
                 $dateStr = $currentDate->format('Y-m-d');
 
@@ -248,7 +255,7 @@ class OrderCreationService
                 // 验证选择的库存数量是否等于房间数量
                 $selectedInventoryIds = $selectedInventories[$dateStr];
                 if (count($selectedInventoryIds) !== $roomCount) {
-                    throw new \Exception("日期 {$dateStr} 选择的库存数量（".count($selectedInventoryIds)."）与房间数量（{$roomCount}）不匹配");
+                    throw new \Exception("日期 {$dateStr} 选择的库存数量（" . count($selectedInventoryIds) . "）与房间数量（{$roomCount}）不匹配");
                 }
 
                 // 为每个选择的库存创建OrderItem
@@ -260,8 +267,7 @@ class OrderCreationService
                         $dateStr
                     );
 
-                    $nextDay = clone $currentDate;
-                    $nextDay->modify('+1 day');
+                    $nextDay = $currentDate->modify('+1 day');
 
                     $orderItem = $this->createOrderItem(
                         $order,
@@ -274,7 +280,7 @@ class OrderCreationService
                     $totalOrderAmount = $totalOrderAmount->plus(BigDecimal::of($dailyInventory->getSellingPrice()));
                 }
 
-                $currentDate->modify('+1 day');
+                $currentDate = $currentDate->modify('+1 day');
             }
 
             // 设置订单总金额
@@ -284,7 +290,6 @@ class OrderCreationService
             $this->entityManager->commit();
 
             return $order;
-
         } catch (\Throwable $e) {
             $this->entityManager->rollback();
             throw $e;
@@ -297,7 +302,7 @@ class OrderCreationService
     public function releaseOrderInventory(Order $order): void
     {
         foreach ($order->getOrderItems() as $orderItem) {
-            if ($orderItem->getDailyInventory()) {
+            if (null !== $orderItem->getDailyInventory()) {
                 $dailyInventory = $orderItem->getDailyInventory();
                 // 恢复为可用状态
                 $dailyInventory->setStatus(DailyInventoryStatusEnum::AVAILABLE);

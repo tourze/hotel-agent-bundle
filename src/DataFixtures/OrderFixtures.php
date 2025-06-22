@@ -68,8 +68,8 @@ class OrderFixtures extends Fixture implements DependentFixtureInterface
         $orderItem1->setOrder($order1);
         $orderItem1->setHotel($hotelSample);
         $orderItem1->setRoomType($roomTypeStandard);
-        $orderItem1->setCheckInDate(new \DateTime('+3 days'));
-        $orderItem1->setCheckOutDate(new \DateTime('+5 days'));
+        $orderItem1->setCheckInDate(new \DateTimeImmutable('+3 days'));
+        $orderItem1->setCheckOutDate(new \DateTimeImmutable('+5 days'));
         $orderItem1->setUnitPrice('300.00');
         $orderItem1->setCostPrice('250.00');
         $orderItem1->setStatus(OrderItemStatusEnum::CONFIRMED);
@@ -96,8 +96,8 @@ class OrderFixtures extends Fixture implements DependentFixtureInterface
         $orderItem2->setOrder($order2);
         $orderItem2->setHotel($hotelBusiness);
         $orderItem2->setRoomType($roomTypeDeluxe);
-        $orderItem2->setCheckInDate(new \DateTime('+7 days'));
-        $orderItem2->setCheckOutDate(new \DateTime('+10 days'));
+        $orderItem2->setCheckInDate(new \DateTimeImmutable('+7 days'));
+        $orderItem2->setCheckOutDate(new \DateTimeImmutable('+10 days'));
         $orderItem2->setUnitPrice('500.00');
         $orderItem2->setCostPrice('400.00');
         $orderItem2->setStatus(OrderItemStatusEnum::PENDING);
@@ -118,7 +118,7 @@ class OrderFixtures extends Fixture implements DependentFixtureInterface
         $order3->setAuditStatus(AuditStatusEnum::REJECTED);
         $order3->setRemark('C级代理取消订单');
         $order3->setCancelReason('客户要求取消');
-        $order3->setCancelTime(new \DateTime('-1 day'));
+        $order3->setCancelTime(new \DateTimeImmutable('-1 day'));
         $order3->setCancelledBy(1);
         $order3->setCreatedBy(1);
 
@@ -127,8 +127,8 @@ class OrderFixtures extends Fixture implements DependentFixtureInterface
         $orderItem3->setOrder($order3);
         $orderItem3->setHotel($hotelSample);
         $orderItem3->setRoomType($roomTypeStandard);
-        $orderItem3->setCheckInDate(new \DateTime('+1 day'));
-        $orderItem3->setCheckOutDate(new \DateTime('+3 days'));
+        $orderItem3->setCheckInDate(new \DateTimeImmutable('+1 day'));
+        $orderItem3->setCheckOutDate(new \DateTimeImmutable('+3 days'));
         $orderItem3->setUnitPrice('280.00');
         $orderItem3->setCostPrice('230.00');
         $orderItem3->setStatus(OrderItemStatusEnum::CANCELED);
@@ -156,8 +156,8 @@ class OrderFixtures extends Fixture implements DependentFixtureInterface
         $orderItem4a->setOrder($order4);
         $orderItem4a->setHotel($hotelBusiness);
         $orderItem4a->setRoomType($roomTypeDeluxe);
-        $orderItem4a->setCheckInDate(new \DateTime('+14 days'));
-        $orderItem4a->setCheckOutDate(new \DateTime('+16 days'));
+        $orderItem4a->setCheckInDate(new \DateTimeImmutable('+14 days'));
+        $orderItem4a->setCheckOutDate(new \DateTimeImmutable('+16 days'));
         $orderItem4a->setUnitPrice('600.00');
         $orderItem4a->setCostPrice('480.00');
         $orderItem4a->setStatus(OrderItemStatusEnum::CONFIRMED);
@@ -166,8 +166,8 @@ class OrderFixtures extends Fixture implements DependentFixtureInterface
         $orderItem4b->setOrder($order4);
         $orderItem4b->setHotel($hotelLuxury);
         $orderItem4b->setRoomType($roomTypeSuite);
-        $orderItem4b->setCheckInDate(new \DateTime('+16 days'));
-        $orderItem4b->setCheckOutDate(new \DateTime('+18 days'));
+        $orderItem4b->setCheckInDate(new \DateTimeImmutable('+16 days'));
+        $orderItem4b->setCheckOutDate(new \DateTimeImmutable('+18 days'));
         $orderItem4b->setUnitPrice('1200.00');
         $orderItem4b->setCostPrice('900.00');
         $orderItem4b->setStatus(OrderItemStatusEnum::CONFIRMED);

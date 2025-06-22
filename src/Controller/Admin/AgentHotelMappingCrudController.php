@@ -16,20 +16,19 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentHotelMapping;
+use Tourze\HotelAgentBundle\Repository\AgentHotelMappingRepository;
 use Tourze\HotelProfileBundle\Entity\Hotel;
-use Tourze\HotelProfileBundle\Entity\RoomType;
+use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
 
 /**
  * 代理酒店映射管理控制器
  */
 class AgentHotelMappingCrudController extends AbstractCrudController
 {
-    private EntityManagerInterface $entityManager;
-
-    public function __construct(EntityManagerInterface $entityManager)
-    {
-        $this->entityManager = $entityManager;
-    }
+    public function __construct(
+        private readonly RoomTypeRepository $roomTypeRepository,
+        private readonly AgentHotelMappingRepository $agentHotelMappingRepository
+    ) {}
 
     public static function getEntityFqcn(): string
     {
@@ -130,17 +129,20 @@ class AgentHotelMappingCrudController extends AbstractCrudController
         if (Crud::PAGE_INDEX === $pageName) {
             return [
                 AssociationField::new('agent', '代理')
-                    ->formatValue(fn($value, $entity) => 
-                        $entity->getAgent() ? 
-                        $entity->getAgent()->getCompanyName() . ' (' . $entity->getAgent()->getCode() . ')' : 
-                        'N/A'
+                    ->formatValue(
+                        fn($value, $entity) =>
+                        $entity->getAgent() ?
+                            $entity->getAgent()->getCompanyName() . ' (' . $entity->getAgent()->getCode() . ')' :
+                            'N/A'
                     ),
                 AssociationField::new('hotel', '酒店')
-                    ->formatValue(fn($value, $entity) => 
+                    ->formatValue(
+                        fn($value, $entity) =>
                         $entity->getHotel() ? $entity->getHotel()->getName() : 'N/A'
                     ),
                 TextField::new('roomTypeCount', '可见房型数')
-                    ->formatValue(fn($value, $entity) => 
+                    ->formatValue(
+                        fn($value, $entity) =>
                         empty($entity->getRoomTypeIds()) ? '全部房型' : count($entity->getRoomTypeIds()) . ' 个房型'
                     ),
                 DateTimeField::new('createTime', '创建时间')
@@ -154,14 +156,14 @@ class AgentHotelMappingCrudController extends AbstractCrudController
      */
     private function getRoomTypeChoices(): array
     {
-        $roomTypes = $this->entityManager->getRepository(RoomType::class)->findAll();
+        $roomTypes = $this->roomTypeRepository->findAll();
         $choices = [];
-        
+
         foreach ($roomTypes as $roomType) {
             $label = $roomType->getHotel()->getName() . ' - ' . $roomType->getName();
             $choices[$label] = $roomType->getId();
         }
-        
+
         return $choices;
     }
 
@@ -181,13 +183,12 @@ class AgentHotelMappingCrudController extends AbstractCrudController
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         // 检查重复映射
-        $existingMapping = $entityManager->getRepository(AgentHotelMapping::class)
-            ->findByAgentAndHotel(
-                $entityInstance->getAgent()->getId(),
-                $entityInstance->getHotel()->getId()
-            );
+        $existingMapping = $this->agentHotelMappingRepository->findByAgentAndHotel(
+            $entityInstance->getAgent()->getId(),
+            $entityInstance->getHotel()->getId()
+        );
 
-        if ($existingMapping && $existingMapping->getId() !== $entityInstance->getId()) {
+        if (null !== $existingMapping && $existingMapping->getId() !== $entityInstance->getId()) {
             $this->addFlash('danger', '该代理已经有此酒店的授权，无法重复添加');
             return;
         }
@@ -204,4 +205,4 @@ class AgentHotelMappingCrudController extends AbstractCrudController
         parent::updateEntity($entityManager, $entityInstance);
         $this->addFlash('success', '酒店授权更新成功');
     }
-} 
+}

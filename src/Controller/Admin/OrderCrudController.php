@@ -2,7 +2,6 @@
 
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
@@ -29,16 +28,16 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Attribute\Route;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
+use Tourze\HotelAgentBundle\Repository\OrderItemRepository;
 use Tourze\HotelAgentBundle\Service\OrderCreationService;
 use Tourze\HotelAgentBundle\Service\OrderImportService;
 use Tourze\HotelAgentBundle\Service\OrderStatusService;
-use Tourze\HotelContractBundle\Service\InventoryQueryService;
+use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
 
 /**
  * 订单管理控制器
@@ -49,12 +48,11 @@ class OrderCrudController extends AbstractCrudController
         private readonly OrderStatusService $orderStatusService,
         private readonly OrderImportService $orderImportService,
         private readonly OrderCreationService $orderCreationService,
-        private readonly InventoryQueryService $inventoryQueryService,
         private readonly AgentRepository $agentRepository,
-        private readonly EntityManagerInterface $entityManager,
+        private readonly OrderItemRepository $orderItemRepository,
+        private readonly RoomTypeRepository $roomTypeRepository,
         private readonly AdminUrlGenerator $adminUrlGenerator,
-    ) {
-    }
+    ) {}
 
     public static function getEntityFqcn(): string
     {
@@ -158,13 +156,13 @@ class OrderCrudController extends AbstractCrudController
             ->add(ChoiceFilter::new('auditStatus', '审核状态')->setChoices($auditStatusChoices))
             ->add(DateTimeFilter::new('createTime', '创建时间'))
             ->add(EntityFilter::new('agent', '代理商'))
-            ;
+        ;
     }
 
     public function configureFields(string $pageName): iterable
     {
         yield IntegerField::new('id', 'ID')->onlyOnIndex();
-        
+
         // 订单编号 - 创建时自动生成，编辑时只读
         yield TextField::new('orderNo', '订单编号')
             ->setColumns(3)
@@ -258,7 +256,7 @@ class OrderCrudController extends AbstractCrudController
                 ->formatValue(function ($value, $entity) {
                     // 预加载关联数据避免N+1查询
                     if ($entity instanceof Order && $value) {
-                        $this->entityManager->getRepository(\Tourze\HotelAgentBundle\Entity\OrderItem::class)
+                        $this->orderItemRepository
                             ->createQueryBuilder('oi')
                             ->select('oi', 'h', 'rt', 'di', 'c')
                             ->leftJoin('oi.hotel', 'h')
@@ -309,7 +307,7 @@ class OrderCrudController extends AbstractCrudController
         }
 
         try {
-            $userId = $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
+            $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
             $this->orderStatusService->confirmOrder($order, (int)$userId);
 
             $this->addFlash('success', '订单确认成功');
@@ -346,7 +344,7 @@ class OrderCrudController extends AbstractCrudController
                 $this->addFlash('danger', '请输入取消原因');
             } else {
                 try {
-                    $userId = $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
+                    $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
                     $this->orderStatusService->cancelOrder($order, $reason, (int)$userId);
 
                     $this->addFlash('success', '订单取消成功');
@@ -388,7 +386,7 @@ class OrderCrudController extends AbstractCrudController
                 $this->addFlash('danger', '请输入关闭原因');
             } else {
                 try {
-                    $userId = $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
+                    $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
                     $this->orderStatusService->closeOrder($order, $reason, (int)$userId);
 
                     $this->addFlash('success', '订单关闭成功');
@@ -416,11 +414,11 @@ class OrderCrudController extends AbstractCrudController
         if ($request->isMethod('POST')) {
             $uploadedFile = $request->files->get('import_file');
 
-            if (!$uploadedFile) {
+            if (null === $uploadedFile) {
                 $this->addFlash('danger', '请选择要导入的Excel文件');
             } else {
                 try {
-                    $userId = $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
+                    $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
                     $result = $this->orderImportService->importFromExcel($uploadedFile, (int)$userId);
 
                     $this->addFlash('success', sprintf('成功导入 %d 个订单', $result['success_count']));
@@ -458,7 +456,6 @@ class OrderCrudController extends AbstractCrudController
                     ->setController(self::class)
                     ->setAction(Action::INDEX)
                     ->generateUrl());
-
             } catch (\Throwable $e) {
                 $this->addFlash('danger', '订单创建失败：' . $e->getMessage());
 
@@ -473,7 +470,7 @@ class OrderCrudController extends AbstractCrudController
         $agents = $this->agentRepository->findAll();
 
         // 获取房型列表
-        $roomTypes = $this->entityManager->getRepository(\Tourze\HotelProfileBundle\Entity\RoomType::class)->findBy(
+        $roomTypes = $this->roomTypeRepository->findBy(
             ['status' => \Tourze\HotelProfileBundle\Enum\RoomTypeStatusEnum::ACTIVE],
             ['hotel' => 'ASC', 'name' => 'ASC']
         );
@@ -482,41 +479,5 @@ class OrderCrudController extends AbstractCrudController
             'agents' => $agents,
             'roomTypes' => $roomTypes,
         ]);
-    }
-
-    /**
-     * Ajax接口：获取库存信息
-     */
-    #[Route('/admin/order/ajax/inventory', name: 'admin_order_ajax_inventory', methods: ['POST'])]
-    public function ajaxInventory(Request $request): Response
-    {
-        try {
-            $roomTypeId = $request->request->get('room_type_id');
-            $checkInDate = $request->request->get('check_in_date');
-            $checkOutDate = $request->request->get('check_out_date');
-            $roomCount = (int)$request->request->get('room_count', 1);
-
-            if (!$roomTypeId || !$checkInDate || !$checkOutDate) {
-                throw new \Exception('参数不完整');
-            }
-
-            $data = $this->inventoryQueryService->getInventoryData(
-                (int)$roomTypeId,
-                $checkInDate,
-                $checkOutDate,
-                $roomCount
-            );
-
-            return $this->json([
-                'success' => true,
-                'data' => $data
-            ]);
-
-        } catch (\Throwable $e) {
-            return $this->json([
-                'success' => false,
-                'error' => $e->getMessage()
-            ], 400);
-        }
     }
 }

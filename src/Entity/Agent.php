@@ -9,7 +9,7 @@ use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
-use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
+use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\AgentLevelEnum;
 use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
@@ -21,9 +21,11 @@ use Tourze\HotelAgentBundle\Repository\AgentRepository;
 class Agent implements Stringable
 {
     use TimestampableAware;
+    use CreatedByAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '关联的BizUser ID'])]
@@ -61,10 +63,8 @@ class Agent implements Stringable
     #[ORM\Column(type: Types::STRING, length: 20, enumType: AgentStatusEnum::class, options: ['comment' => '账户状态'])]
     private AgentStatusEnum $status = AgentStatusEnum::ACTIVE;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true, options: ['comment' => '账户有效期'])]
-    private ?\DateTimeInterface $expiryDate = null;#[CreatedByColumn]
-    #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $createdBy = null;
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true, options: ['comment' => '账户有效期'])]
+    private ?\DateTimeImmutable $expiryDate = null;
 
     #[ORM\OneToMany(targetEntity: AgentHotelMapping::class, mappedBy: 'agent', fetch: 'EXTRA_LAZY')]
     private Collection $hotelMappings;
@@ -203,18 +203,15 @@ class Agent implements Stringable
         return $this;
     }
 
-    public function getExpiryDate(): ?\DateTimeInterface
+    public function getExpiryDate(): ?\DateTimeImmutable
     {
         return $this->expiryDate;
     }
 
-    public function setExpiryDate(?\DateTimeInterface $expiryDate): self
+    public function setExpiryDate(?\DateTimeImmutable $expiryDate): self
     {
         $this->expiryDate = $expiryDate;
         return $this;
-    }public function getCreatedBy(): ?int
-    {
-        return $this->createdBy;
     }
 
     /**
@@ -325,7 +322,7 @@ class Agent implements Stringable
             return false;
         }
 
-        return $this->expiryDate < new \DateTime();
+        return $this->expiryDate < new \DateTimeImmutable();
     }
 
     /**

@@ -29,7 +29,7 @@ class OrderItem implements Stringable
     use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne]
@@ -44,11 +44,11 @@ class OrderItem implements Stringable
     #[ORM\JoinColumn(name: 'room_type_id', nullable: false)]
     private ?RoomType $roomType = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE, options: ['comment' => '入住日期'])]
-    private ?\DateTimeInterface $checkInDate = null;
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, options: ['comment' => '入住日期'])]
+    private ?\DateTimeImmutable $checkInDate = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE, options: ['comment' => '退房日期'])]
-    private ?\DateTimeInterface $checkOutDate = null;
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, options: ['comment' => '退房日期'])]
+    private ?\DateTimeImmutable $checkOutDate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['comment' => '销售单价'])]
     #[Assert\PositiveOrZero]
@@ -143,24 +143,24 @@ class OrderItem implements Stringable
         return $this;
     }
 
-    public function getCheckInDate(): ?\DateTimeInterface
+    public function getCheckInDate(): ?\DateTimeImmutable
     {
         return $this->checkInDate;
     }
 
-    public function setCheckInDate(?\DateTimeInterface $checkInDate): self
+    public function setCheckInDate(?\DateTimeImmutable $checkInDate): self
     {
         $this->checkInDate = $checkInDate;
         $this->calculateAmount();
         return $this;
     }
 
-    public function getCheckOutDate(): ?\DateTimeInterface
+    public function getCheckOutDate(): ?\DateTimeImmutable
     {
         return $this->checkOutDate;
     }
 
-    public function setCheckOutDate(?\DateTimeInterface $checkOutDate): self
+    public function setCheckOutDate(?\DateTimeImmutable $checkOutDate): self
     {
         $this->checkOutDate = $checkOutDate;
         $this->calculateAmount();
@@ -284,7 +284,7 @@ class OrderItem implements Stringable
     public function changeContract(HotelContract $newContract, string $reason, int $operatorId): self
     {
         $oldContract = $this->contract;
-        $oldContractId = $oldContract ? $oldContract->getId() : null;
+        $oldContractId = null !== $oldContract ? $oldContract->getId() : null;
         $newContractId = $newContract->getId();
 
         $changeRecord = [
@@ -308,7 +308,7 @@ class OrderItem implements Stringable
      */
     private function calculateAmount(): void
     {
-        if (!$this->checkInDate || !$this->checkOutDate || !$this->unitPrice) {
+        if (null === $this->checkInDate || null === $this->checkOutDate) {
             return;
         }
 
@@ -324,7 +324,7 @@ class OrderItem implements Stringable
      */
     private function calculateNights(): int
     {
-        if (!$this->checkInDate || !$this->checkOutDate) {
+        if (null === $this->checkInDate || null === $this->checkOutDate) {
             return 0;
         }
 
@@ -338,10 +338,8 @@ class OrderItem implements Stringable
      */
     private function calculateProfit(): void
     {
-        if (!$this->amount || !$this->costPrice) {
-            return;
-        }
-
+        // amount 和 costPrice 都是 string 类型且有默认值，不需要检查
+        // 直接计算
         $nights = $this->calculateNights();
         $totalCost = BigDecimal::of($this->costPrice)->multipliedBy(BigDecimal::of($nights))->toScale(2);
         $this->profit = BigDecimal::of($this->amount)->minus($totalCost)->toScale(2)->__toString();

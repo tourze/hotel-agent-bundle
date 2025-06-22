@@ -146,7 +146,7 @@ class AgentTest extends TestCase
 
     public function test_setExpiryDate_with_valid_date(): void
     {
-        $date = new \DateTime('2025-12-31');
+        $date = new \DateTimeImmutable('2025-12-31');
         $this->agent->setExpiryDate($date);
 
         $this->assertSame($date, $this->agent->getExpiryDate());
@@ -257,7 +257,7 @@ class AgentTest extends TestCase
 
     public function test_isExpired_returns_true_when_expired(): void
     {
-        $expiredDate = new \DateTime('-1 day');
+        $expiredDate = new \DateTimeImmutable('-1 day');
         $this->agent->setExpiryDate($expiredDate);
 
         $this->assertTrue($this->agent->isExpired());
@@ -265,7 +265,7 @@ class AgentTest extends TestCase
 
     public function test_isExpired_returns_false_when_not_expired(): void
     {
-        $futureDate = new \DateTime('+1 day');
+        $futureDate = new \DateTimeImmutable('+1 day');
         $this->agent->setExpiryDate($futureDate);
 
         $this->assertFalse($this->agent->isExpired());
@@ -274,7 +274,7 @@ class AgentTest extends TestCase
     public function test_isActive_returns_true_when_active_and_not_expired(): void
     {
         $this->agent->setStatus(AgentStatusEnum::ACTIVE);
-        $this->agent->setExpiryDate(new \DateTime('+1 day'));
+        $this->agent->setExpiryDate(new \DateTimeImmutable('+1 day'));
 
         $this->assertTrue($this->agent->isActive());
     }
@@ -282,7 +282,7 @@ class AgentTest extends TestCase
     public function test_isActive_returns_false_when_not_active(): void
     {
         $this->agent->setStatus(AgentStatusEnum::FROZEN);
-        $this->agent->setExpiryDate(new \DateTime('+1 day'));
+        $this->agent->setExpiryDate(new \DateTimeImmutable('+1 day'));
 
         $this->assertFalse($this->agent->isActive());
     }
@@ -290,7 +290,7 @@ class AgentTest extends TestCase
     public function test_isActive_returns_false_when_expired(): void
     {
         $this->agent->setStatus(AgentStatusEnum::ACTIVE);
-        $this->agent->setExpiryDate(new \DateTime('-1 day'));
+        $this->agent->setExpiryDate(new \DateTimeImmutable('-1 day'));
 
         $this->assertFalse($this->agent->isActive());
     }

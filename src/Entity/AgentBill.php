@@ -7,7 +7,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
-use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
+use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
 use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
@@ -19,9 +19,11 @@ use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
 class AgentBill implements Stringable
 {
     use TimestampableAware;
+    use CreatedByAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Agent::class, inversedBy: 'bills')]
@@ -49,23 +51,21 @@ class AgentBill implements Stringable
     #[ORM\Column(type: Types::STRING, length: 20, enumType: BillStatusEnum::class, options: ['comment' => '账单状态'])]
     private BillStatusEnum $status = BillStatusEnum::PENDING;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '确认时间'])]
-    private ?\DateTimeInterface $confirmTime = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '确认时间'])]
+    private ?\DateTimeImmutable $confirmTime = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '支付时间'])]
-    private ?\DateTimeInterface $payTime = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '支付时间'])]
+    private ?\DateTimeImmutable $payTime = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true, options: ['comment' => '支付凭证号'])]
     private ?string $paymentReference = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '备注'])]
-    private ?string $remarks = null;#[CreatedByColumn]
-    #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $createdBy = null;
+    private ?string $remarks = null;
 
     public function __toString(): string
     {
-        $agentCode = $this->agent ? $this->agent->getCode() : 'N/A';
+        $agentCode = $this->agent !== null ? $this->agent->getCode() : 'N/A';
         return sprintf('账单 %s (%s)', $this->billMonth, $agentCode);
     }
 
@@ -162,23 +162,23 @@ class AgentBill implements Stringable
         return $this;
     }
 
-    public function getConfirmTime(): ?\DateTimeInterface
+    public function getConfirmTime(): ?\DateTimeImmutable
     {
         return $this->confirmTime;
     }
 
-    public function setConfirmTime(?\DateTimeInterface $confirmTime): self
+    public function setConfirmTime(?\DateTimeImmutable $confirmTime): self
     {
         $this->confirmTime = $confirmTime;
         return $this;
     }
 
-    public function getPayTime(): ?\DateTimeInterface
+    public function getPayTime(): ?\DateTimeImmutable
     {
         return $this->payTime;
     }
 
-    public function setPayTime(?\DateTimeInterface $payTime): self
+    public function setPayTime(?\DateTimeImmutable $payTime): self
     {
         $this->payTime = $payTime;
         return $this;
@@ -204,9 +204,6 @@ class AgentBill implements Stringable
     {
         $this->remarks = $remarks;
         return $this;
-    }public function getCreatedBy(): ?int
-    {
-        return $this->createdBy;
     }
 
     /**
@@ -216,7 +213,7 @@ class AgentBill implements Stringable
     {
         if ($this->status === BillStatusEnum::PENDING) {
             $this->status = BillStatusEnum::CONFIRMED;
-            $this->confirmTime = new \DateTime();
+            $this->confirmTime = new \DateTimeImmutable();
         }
         return $this;
     }
@@ -228,8 +225,8 @@ class AgentBill implements Stringable
     {
         if ($this->status === BillStatusEnum::CONFIRMED) {
             $this->status = BillStatusEnum::PAID;
-            $this->payTime = new \DateTime();
-            if ($paymentReference) {
+            $this->payTime = new \DateTimeImmutable();
+            if (null !== $paymentReference) {
                 $this->paymentReference = $paymentReference;
             }
         }

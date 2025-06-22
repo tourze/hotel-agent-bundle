@@ -12,6 +12,7 @@ use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
 use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelAgentBundle\Repository\OrderRepository;
 
 /**
@@ -23,6 +24,7 @@ class AgentBillService
         private readonly EntityManagerInterface $entityManager,
         private readonly AgentBillRepository $agentBillRepository,
         private readonly OrderRepository $orderRepository,
+        private readonly AgentRepository $agentRepository,
         private readonly LoggerInterface $logger,
         private readonly ?BillAuditService $billAuditService = null
     ) {}
@@ -41,7 +43,7 @@ class AgentBillService
         $endDate->setTime(23, 59, 59);
 
         // 获取所有活跃代理
-        $agents = $this->entityManager->getRepository(Agent::class)
+        $agents = $this->agentRepository
             ->createQueryBuilder('a')
             ->andWhere('a.status = :status')
             ->setParameter('status', 'active')
@@ -55,7 +57,7 @@ class AgentBillService
                 'billMonth' => $billMonth
             ]);
 
-            if ($existingBill && !$force) {
+            if (null !== $existingBill && !$force) {
                 $this->logger->warning('代理账单已存在', [
                     'agentId' => $agent->getId(),
                     'billMonth' => $billMonth
@@ -63,14 +65,14 @@ class AgentBillService
                 continue;
             }
 
-            if ($existingBill && $force) {
+            if (null !== $existingBill && $force) {
                 // 强制重新生成时，删除旧账单
                 $this->entityManager->remove($existingBill);
                 $this->billAuditService?->logAuditAction($existingBill, '强制重新生成', '删除旧账单并重新生成');
             }
 
             $bill = $this->generateAgentBill($agent, $billMonth, $startDate, $endDate);
-            if ($bill) {
+            if (null !== $bill) {
                 $generatedBills[] = $bill;
                 $this->billAuditService?->logAuditAction($bill, '自动生成账单', "系统自动生成{$billMonth}月结账单");
             }
@@ -94,8 +96,7 @@ class AgentBillService
         string             $billMonth,
         \DateTimeInterface $startDate,
         \DateTimeInterface $endDate
-    ): ?AgentBill
-    {
+    ): ?AgentBill {
         // 查询该代理在指定时间范围内的已确认订单
         $orders = $this->orderRepository->createQueryBuilder('o')
             ->andWhere('o.agent = :agent')
@@ -295,23 +296,22 @@ class AgentBillService
         ?string         $billMonth = null,
         int             $page = 1,
         int             $limit = 20
-    ): array
-    {
+    ): array {
         $qb = $this->agentBillRepository->createQueryBuilder('ab')
             ->leftJoin('ab.agent', 'a')
             ->addSelect('a');
 
-        if ($agent) {
+        if (null !== $agent) {
             $qb->andWhere('ab.agent = :agent')
                 ->setParameter('agent', $agent);
         }
 
-        if ($status) {
+        if (null !== $status) {
             $qb->andWhere('ab.status = :status')
                 ->setParameter('status', $status);
         }
 
-        if ($billMonth) {
+        if (null !== $billMonth) {
             $qb->andWhere('ab.billMonth = :billMonth')
                 ->setParameter('billMonth', $billMonth);
         }

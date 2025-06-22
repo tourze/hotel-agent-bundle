@@ -2,21 +2,19 @@
 
 namespace Tourze\HotelAgentBundle\Service;
 
-use Doctrine\ORM\EntityManagerInterface;
-use Tourze\HotelAgentBundle\Entity\Agent;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
 
 /**
  * 代理编号生成服务
- * 
+ *
  * 自动生成格式为 AGT + 8位数字的代理编号
  * 例如：AGT20250101
  */
 class AgentCodeGenerator
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager
-    ) {
-    }
+        private readonly AgentRepository $agentRepository
+    ) {}
 
     /**
      * 生成下一个可用的代理编号
@@ -24,12 +22,12 @@ class AgentCodeGenerator
     public function generateCode(): string
     {
         $prefix = 'AGT';
-        
+
         // 获取当前年月日作为基础
         $dateBase = date('Ymd');
-        
+
         // 查找同一天创建的最大编号
-        $lastAgent = $this->entityManager->getRepository(Agent::class)
+        $lastAgent = $this->agentRepository
             ->createQueryBuilder('a')
             ->where('a.code LIKE :pattern')
             ->setParameter('pattern', $prefix . $dateBase . '%')
@@ -38,7 +36,7 @@ class AgentCodeGenerator
             ->getQuery()
             ->getOneOrNullResult();
 
-        if ($lastAgent) {
+        if (null !== $lastAgent) {
             // 提取最后的序号并递增
             $lastCode = $lastAgent->getCode();
             $lastNumber = (int) substr($lastCode, -2); // 取后两位
@@ -80,9 +78,8 @@ class AgentCodeGenerator
      */
     private function codeExists(string $code): bool
     {
-        $agent = $this->entityManager->getRepository(Agent::class)
-            ->findByCode($code);
-        
+        $agent = $this->agentRepository->findOneBy(['code' => $code]);
+
         return $agent !== null;
     }
 

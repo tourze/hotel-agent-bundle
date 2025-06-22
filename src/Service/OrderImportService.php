@@ -8,13 +8,13 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
-use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Entity\OrderItem;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
-use Tourze\HotelProfileBundle\Entity\Hotel;
-use Tourze\HotelProfileBundle\Entity\RoomType;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
+use Tourze\HotelProfileBundle\Repository\HotelRepository;
+use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
 
 /**
  * 订单导入服务
@@ -24,9 +24,11 @@ class OrderImportService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
+        private readonly AgentRepository $agentRepository,
+        private readonly HotelRepository $hotelRepository,
+        private readonly RoomTypeRepository $roomTypeRepository,
         private readonly string $uploadsDirectory = '/tmp'
-    ) {
-    }
+    ) {}
 
     /**
      * 从Excel文件导入订单
@@ -59,18 +61,14 @@ class OrderImportService
             for ($row = 2; $row <= $highestRow; $row++) {
                 try {
                     $rowData = $this->parseRowData($worksheet, $row);
-                    
+
                     if ($this->isEmptyRow($rowData)) {
                         continue; // 跳过空行
                     }
 
                     $order = $this->createOrderFromRowData($rowData, $operatorId);
-                    
-                    if ($order) {
-                        $this->entityManager->persist($order);
-                        $successCount++;
-                    }
-                    
+                    $this->entityManager->persist($order);
+                    $successCount++;
                 } catch (\Throwable $e) {
                     $errorCount++;
                     $errors[] = "第 {$row} 行导入失败: " . $e->getMessage();
@@ -91,7 +89,6 @@ class OrderImportService
                 'error_count' => $errorCount,
                 'operator_id' => $operatorId,
             ]);
-
         } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单导入失败', [
@@ -119,14 +116,14 @@ class OrderImportService
     private function parseRowData($worksheet, int $row): array
     {
         return [
-            'agent_code' => trim((string) $worksheet->getCell("A{$row}")->getValue() ?? ''),
-            'hotel_name' => trim((string) $worksheet->getCell("B{$row}")->getValue() ?? ''),
-            'room_type_name' => trim((string) $worksheet->getCell("C{$row}")->getValue() ?? ''),
+            'agent_code' => trim((string) ($worksheet->getCell("A{$row}")->getValue() ?? '')),
+            'hotel_name' => trim((string) ($worksheet->getCell("B{$row}")->getValue() ?? '')),
+            'room_type_name' => trim((string) ($worksheet->getCell("C{$row}")->getValue() ?? '')),
             'check_in_date' => $worksheet->getCell("D{$row}")->getValue(),
             'check_out_date' => $worksheet->getCell("E{$row}")->getValue(),
             'room_count' => (int) ($worksheet->getCell("F{$row}")->getValue() ?? 0),
             'unit_price' => (float) ($worksheet->getCell("G{$row}")->getValue() ?? 0),
-            'remark' => trim((string) $worksheet->getCell("H{$row}")->getValue() ?? ''),
+            'remark' => trim((string) ($worksheet->getCell("H{$row}")->getValue() ?? '')),
         ];
     }
 
@@ -136,45 +133,45 @@ class OrderImportService
     private function isEmptyRow(array $rowData): bool
     {
         $requiredFields = ['agent_code', 'hotel_name', 'room_type_name', 'check_in_date', 'check_out_date'];
-        
+
         foreach ($requiredFields as $field) {
             if (!empty($rowData[$field])) {
                 return false;
             }
         }
-        
+
         return true;
     }
 
     /**
      * 从行数据创建订单
      */
-    private function createOrderFromRowData(array $rowData, int $operatorId): ?Order
+    private function createOrderFromRowData(array $rowData, int $operatorId): Order
     {
         // 验证必填字段
         $this->validateRowData($rowData);
 
         // 查找代理
-        $agent = $this->entityManager->getRepository(Agent::class)
+        $agent = $this->agentRepository
             ->findOneBy(['code' => $rowData['agent_code']]);
-        
-        if (!$agent) {
+
+        if (null === $agent) {
             throw new \InvalidArgumentException("代理编号 '{$rowData['agent_code']}' 不存在");
         }
 
         // 查找酒店
-        $hotel = $this->entityManager->getRepository(Hotel::class)
+        $hotel = $this->hotelRepository
             ->findOneBy(['name' => $rowData['hotel_name']]);
-        
-        if (!$hotel) {
+
+        if (null === $hotel) {
             throw new \InvalidArgumentException("酒店 '{$rowData['hotel_name']}' 不存在");
         }
 
         // 查找房型
-        $roomType = $this->entityManager->getRepository(RoomType::class)
+        $roomType = $this->roomTypeRepository
             ->findOneBy(['hotel' => $hotel, 'name' => $rowData['room_type_name']]);
-        
-        if (!$roomType) {
+
+        if (null === $roomType) {
             throw new \InvalidArgumentException("房型 '{$rowData['room_type_name']}' 在酒店 '{$rowData['hotel_name']}' 中不存在");
         }
 
@@ -209,7 +206,7 @@ class OrderImportService
         $unitPrice = BigDecimal::of($rowData['unit_price']);
         $roomCount = BigDecimal::of($rowData['room_count']);
         $nightsDecimal = BigDecimal::of($nights);
-        
+
         $amount = $unitPrice->multipliedBy($roomCount)->multipliedBy($nightsDecimal)->toScale(2);
         $orderItem->setAmount($amount->__toString());
 
@@ -250,21 +247,25 @@ class OrderImportService
     /**
      * 解析日期
      */
-    private function parseDate($value, string $fieldName): \DateTime
+    private function parseDate($value, string $fieldName): \DateTimeImmutable
     {
-        if ($value instanceof \DateTime) {
+        if ($value instanceof \DateTimeImmutable) {
             return $value;
+        }
+
+        if ($value instanceof \DateTime) {
+            return \DateTimeImmutable::createFromMutable($value);
         }
 
         if (is_numeric($value)) {
             // Excel 日期序列号
             $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value);
-            return $date;
+            return \DateTimeImmutable::createFromMutable($date);
         }
 
         if (is_string($value)) {
             try {
-                return new \DateTime($value);
+                return new \DateTimeImmutable($value);
             } catch (\Throwable $e) {
                 throw new \InvalidArgumentException("{$fieldName}格式不正确: {$value}");
             }
@@ -280,22 +281,22 @@ class OrderImportService
     {
         $prefix = 'ORD';
         $datePart = date('Ymd');
-        
+
         // 查询当天最大订单号
         $qb = $this->entityManager->createQueryBuilder();
         $qb->select('MAX(o.orderNo)')
-           ->from(Order::class, 'o')
-           ->where('o.orderNo LIKE :prefix')
-           ->setParameter('prefix', $prefix . $datePart . '%');
-        
+            ->from(Order::class, 'o')
+            ->where('o.orderNo LIKE :prefix')
+            ->setParameter('prefix', $prefix . $datePart . '%');
+
         $maxOrderNo = $qb->getQuery()->getSingleScalarResult();
-        
+
         if ($maxOrderNo) {
             $sequence = (int) substr($maxOrderNo, -4) + 1;
         } else {
             $sequence = 1;
         }
-        
+
         return $prefix . $datePart . sprintf('%04d', $sequence);
     }
 
@@ -315,7 +316,7 @@ class OrderImportService
     {
         $spreadsheet = new Spreadsheet();
         $worksheet = $spreadsheet->getActiveSheet();
-        
+
         // 设置标题
         $headers = [
             'A1' => '代理编号',
@@ -327,11 +328,11 @@ class OrderImportService
             'G1' => '单价',
             'H1' => '备注',
         ];
-        
+
         foreach ($headers as $cell => $value) {
             $worksheet->setCellValue($cell, $value);
         }
-        
+
         // 设置样例数据
         $worksheet->setCellValue('A2', 'AG001');
         $worksheet->setCellValue('B2', '北京国际酒店');
@@ -341,7 +342,7 @@ class OrderImportService
         $worksheet->setCellValue('F2', 1);
         $worksheet->setCellValue('G2', 300.00);
         $worksheet->setCellValue('H2', '测试订单');
-        
+
         return $spreadsheet;
     }
 }

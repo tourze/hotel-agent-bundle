@@ -270,7 +270,7 @@ class PaymentCrudController extends AbstractCrudController
 
         if ($context->getRequest()->isMethod('POST')) {
             $payment = $context->getEntity()->getInstance();
-            if ($payment instanceof Payment && $payment->getId()) {
+            if ($payment instanceof Payment && null !== $payment->getId()) {
                 // 新建成功后自动生成支付单号
                 if (empty($payment->getPaymentNo())) {
                     $payment->generatePaymentNo();

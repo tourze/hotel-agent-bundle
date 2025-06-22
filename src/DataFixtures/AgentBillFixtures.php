@@ -34,8 +34,8 @@ class AgentBillFixtures extends Fixture implements DependentFixtureInterface
             ->setCommissionAmount('12500.00')
             ->setSettlementType(SettlementTypeEnum::MONTHLY)
             ->setStatus(BillStatusEnum::PAID)
-            ->setConfirmTime(new \DateTime('2024-12-28 10:30:00'))
-            ->setPayTime(new \DateTime('2024-12-30 15:45:00'))
+            ->setConfirmTime(new \DateTimeImmutable('2024-12-28 10:30:00'))
+            ->setPayTime(new \DateTimeImmutable('2024-12-30 15:45:00'))
             ->setPaymentReference('PAY20241230001')
             ->setRemarks('A级代理12月账单，正常结算');
 
@@ -51,7 +51,7 @@ class AgentBillFixtures extends Fixture implements DependentFixtureInterface
             ->setCommissionAmount('8900.00')
             ->setSettlementType(SettlementTypeEnum::MONTHLY)
             ->setStatus(BillStatusEnum::CONFIRMED)
-            ->setConfirmTime(new \DateTime('2025-01-28 09:20:00'))
+            ->setConfirmTime(new \DateTimeImmutable('2025-01-28 09:20:00'))
             ->setRemarks('A级代理1月账单，已确认待支付');
 
         $manager->persist($billA2);
@@ -80,8 +80,8 @@ class AgentBillFixtures extends Fixture implements DependentFixtureInterface
             ->setCommissionAmount('7040.00')
             ->setSettlementType(SettlementTypeEnum::MONTHLY)
             ->setStatus(BillStatusEnum::PAID)
-            ->setConfirmTime(new \DateTime('2024-11-28 14:15:00'))
-            ->setPayTime(new \DateTime('2024-12-02 11:30:00'))
+            ->setConfirmTime(new \DateTimeImmutable('2024-11-28 14:15:00'))
+            ->setPayTime(new \DateTimeImmutable('2024-12-02 11:30:00'))
             ->setPaymentReference('PAY20241202003')
             ->setRemarks('B级代理11月账单，已完成结算');
 
@@ -97,8 +97,8 @@ class AgentBillFixtures extends Fixture implements DependentFixtureInterface
             ->setCommissionAmount('1200.00')
             ->setSettlementType(SettlementTypeEnum::MONTHLY)
             ->setStatus(BillStatusEnum::PAID)
-            ->setConfirmTime(new \DateTime('2024-12-29 16:00:00'))
-            ->setPayTime(new \DateTime('2024-12-31 10:20:00'))
+            ->setConfirmTime(new \DateTimeImmutable('2024-12-29 16:00:00'))
+            ->setPayTime(new \DateTimeImmutable('2024-12-31 10:20:00'))
             ->setPaymentReference('PAY20241231005')
             ->setRemarks('C级代理12月账单，小额结算');
 

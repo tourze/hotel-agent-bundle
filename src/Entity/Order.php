@@ -26,7 +26,7 @@ class Order implements Stringable
     use TimestampableAware;
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, unique: true, options: ['comment' => '订单编号'])]
@@ -58,8 +58,8 @@ class Order implements Stringable
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '取消原因'])]
     private ?string $cancelReason = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '取消时间'])]
-    private ?\DateTimeInterface $cancelTime = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '取消时间'])]
+    private ?\DateTimeImmutable $cancelTime = null;
 
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '取消人ID'])]
     private ?int $cancelledBy = null;
@@ -192,12 +192,12 @@ class Order implements Stringable
         return $this;
     }
 
-    public function getCancelTime(): ?\DateTimeInterface
+    public function getCancelTime(): ?\DateTimeImmutable
     {
         return $this->cancelTime;
     }
 
-    public function setCancelTime(?\DateTimeInterface $cancelTime): self
+    public function setCancelTime(?\DateTimeImmutable $cancelTime): self
     {
         $this->cancelTime = $cancelTime;
         return $this;
@@ -361,7 +361,7 @@ class Order implements Stringable
     {
         $this->status = OrderStatusEnum::CANCELED;
         $this->cancelReason = $reason;
-        $this->cancelTime = new \DateTime();
+        $this->cancelTime = new \DateTimeImmutable();
         $this->cancelledBy = $cancelledBy;
 
         $this->addChangeRecord('cancel', [

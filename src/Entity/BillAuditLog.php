@@ -6,7 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Tourze\DoctrineTimestampBundle\Traits\CreateTimeAware;
-use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
+use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
 
@@ -21,10 +21,11 @@ use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
 class BillAuditLog implements Stringable
 {
     use CreateTimeAware;
+    use CreatedByAware;
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: AgentBill::class)]
@@ -52,9 +53,6 @@ class BillAuditLog implements Stringable
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, options: ['comment' => 'IP地址'])]
     private ?string $ipAddress = null;
 
-    #[CreatedByColumn]
-    #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $createdBy = null;
 
     public function __toString(): string
     {
@@ -152,11 +150,6 @@ class BillAuditLog implements Stringable
     {
         $this->ipAddress = $ipAddress;
         return $this;
-    }
-
-    public function getCreatedBy(): ?int
-    {
-        return $this->createdBy;
     }
 
     /**

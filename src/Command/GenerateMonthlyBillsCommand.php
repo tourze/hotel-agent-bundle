@@ -3,7 +3,6 @@
 namespace Tourze\HotelAgentBundle\Command;
 
 use Brick\Math\BigDecimal;
-use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -12,25 +11,27 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Tourze\HotelAgentBundle\Entity\Agent;
-use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
+use Tourze\HotelAgentBundle\Repository\OrderRepository;
 use Tourze\HotelAgentBundle\Service\AgentBillService;
 
 /**
  * 自动生成代理月结账单的定时任务
  */
 #[AsCommand(
-    name: 'app:generate-monthly-bills',
+    name: self::NAME,
     description: '自动生成代理月结账单'
 )]
 class GenerateMonthlyBillsCommand extends Command
 {
+    public const NAME = 'app:generate-monthly-bills';
     public function __construct(
         private readonly AgentBillService $agentBillService,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AgentRepository $agentRepository,
+        private readonly OrderRepository $orderRepository
     ) {
         parent::__construct();
     }
@@ -64,7 +65,7 @@ class GenerateMonthlyBillsCommand extends Command
         $dryRun = $input->getOption('dry-run');
 
         // 如果没有指定月份，使用上个月
-        if (!$billMonth) {
+        if (null === $billMonth) {
             $billMonth = (new \DateTime('first day of last month'))->format('Y-m');
         }
 
@@ -76,14 +77,14 @@ class GenerateMonthlyBillsCommand extends Command
 
         $io->title("生成代理月结账单: {$billMonth}");
 
-        if ($dryRun) {
+        if (true === $dryRun) {
             $io->note('试运行模式 - 不会实际创建账单');
         }
 
         try {
             $startTime = microtime(true);
 
-            if ($dryRun) {
+            if (true === $dryRun) {
                 $result = $this->dryRunBillGeneration($billMonth);
                 $io->success(sprintf(
                     '试运行完成：将生成 %d 个代理的账单',
@@ -147,12 +148,11 @@ class GenerateMonthlyBillsCommand extends Command
 
             $this->logger->info('月结账单生成任务完成', [
                 'billMonth' => $billMonth,
-                'billCount' => $dryRun ? $result['agentCount'] : count($generatedBills),
+                'billCount' => true === $dryRun ? $result['agentCount'] : count($generatedBills),
                 'dryRun' => $dryRun
             ]);
 
             return Command::SUCCESS;
-
         } catch (\Throwable $e) {
             $io->error('生成账单时发生错误: ' . $e->getMessage());
             $this->logger->error('月结账单生成失败', [
@@ -178,17 +178,14 @@ class GenerateMonthlyBillsCommand extends Command
         $agentCount = 0;
 
         // 获取代理和订单数据
-        $agentRepository = $this->entityManager->getRepository(Agent::class);
-        $orderRepository = $this->entityManager->getRepository(Order::class);
-
-        $activeAgents = $agentRepository->createQueryBuilder('a')
+        $activeAgents = $this->agentRepository->createQueryBuilder('a')
             ->andWhere('a.status = :status')
             ->setParameter('status', AgentStatusEnum::ACTIVE)
             ->getQuery()
             ->getResult();
 
         foreach ($activeAgents as $agent) {
-            $orders = $orderRepository->createQueryBuilder('o')
+            $orders = $this->orderRepository->createQueryBuilder('o')
                 ->andWhere('o.agent = :agent')
                 ->andWhere('o.status = :status')
                 ->andWhere('o.createTime BETWEEN :startDate AND :endDate')

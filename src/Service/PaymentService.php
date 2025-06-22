@@ -87,7 +87,7 @@ class PaymentService
 
         $payment->markAsSuccess($transactionId);
         
-        if ($paymentProofUrl) {
+        if (null !== $paymentProofUrl) {
             $payment->setPaymentProofUrl($paymentProofUrl);
         }
 
@@ -192,7 +192,7 @@ class PaymentService
         
         foreach ($paymentIds as $paymentId) {
             $payment = $this->paymentRepository->find($paymentId);
-            if (!$payment) {
+            if (null === $payment) {
                 $results[$paymentId] = ['success' => false, 'message' => '支付记录不存在'];
                 continue;
             }

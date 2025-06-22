@@ -286,7 +286,7 @@ class AgentBillCrudController extends AbstractCrudController
         
         if ($context->getRequest()->isMethod('POST')) {
             $bill = $context->getEntity()->getInstance();
-            if ($bill instanceof AgentBill && $bill->getId()) {
+            if ($bill instanceof AgentBill && null !== $bill->getId()) {
                 // 新建成功后自动计算账单数据
                 try {
                     $this->agentBillService->recalculateBill($bill);

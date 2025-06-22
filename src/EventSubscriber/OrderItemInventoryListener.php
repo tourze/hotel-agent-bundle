@@ -60,7 +60,7 @@ class OrderItemInventoryListener
             $checkInDate = $orderItem->getCheckInDate();
             $checkOutDate = $orderItem->getCheckOutDate();
 
-            if (!$hotel || !$roomType || !$checkInDate || !$checkOutDate) {
+            if (null === $hotel || null === $roomType || null === $checkInDate || null === $checkOutDate) {
                 $this->logger->warning('OrderItem 数据不完整，跳过库存统计更新', [
                     'order_item_id' => $orderItem->getId(),
                     'operation' => $operation

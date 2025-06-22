@@ -23,7 +23,7 @@ class AgentCodeGeneratorTest extends TestCase
     {
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->agentRepository = $this->createMock(AgentRepository::class);
-        $this->generator = new AgentCodeGenerator($this->entityManager);
+        $this->generator = new AgentCodeGenerator($this->agentRepository);
     }
 
     public function test_generateCode_creates_first_code_of_day(): void
@@ -42,7 +42,7 @@ class AgentCodeGeneratorTest extends TestCase
     {
         $existingAgent = new Agent();
         $existingAgent->setCode('AGT' . date('Ymd') . '03');
-        
+
         $this->setupRepositoryToReturnAgent($existingAgent);
 
         $code = $this->generator->generateCode();
@@ -55,7 +55,7 @@ class AgentCodeGeneratorTest extends TestCase
     {
         $existingAgent = new Agent();
         $existingAgent->setCode('AGT' . date('Ymd') . '99');
-        
+
         $this->setupRepositoryToReturnAgent($existingAgent);
 
         $code = $this->generator->generateCode();
@@ -69,10 +69,10 @@ class AgentCodeGeneratorTest extends TestCase
     {
         $existingAgent1 = new Agent();
         $existingAgent1->setCode('AGT' . date('Ymd') . '01');
-        
+
         $existingAgent2 = new Agent();
         $existingAgent2->setCode('AGT' . date('Ymd') . '02');
-        
+
         $this->setupRepositoryWithCollision($existingAgent1, $existingAgent2);
 
         $code = $this->generator->generateCode();
@@ -142,11 +142,6 @@ class AgentCodeGeneratorTest extends TestCase
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
 
-        $this->entityManager->expects($this->atLeast(2))
-            ->method('getRepository')
-            ->with(Agent::class)
-            ->willReturn($this->agentRepository);
-
         $this->agentRepository->expects($this->once())
             ->method('createQueryBuilder')
             ->with('a')
@@ -173,7 +168,10 @@ class AgentCodeGeneratorTest extends TestCase
             ->willReturn(null);
 
         $this->agentRepository->expects($this->atLeast(1))
-            ->method('findByCode')
+            ->method('findOneBy')
+            ->with($this->callback(function ($criteria) {
+                return is_array($criteria) && isset($criteria['code']);
+            }))
             ->willReturn(null);
     }
 
@@ -181,11 +179,6 @@ class AgentCodeGeneratorTest extends TestCase
     {
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
-
-        $this->entityManager->expects($this->atLeast(2))
-            ->method('getRepository')
-            ->with(Agent::class)
-            ->willReturn($this->agentRepository);
 
         $this->agentRepository->expects($this->once())
             ->method('createQueryBuilder')
@@ -213,7 +206,10 @@ class AgentCodeGeneratorTest extends TestCase
             ->willReturn($agent);
 
         $this->agentRepository->expects($this->atLeast(1))
-            ->method('findByCode')
+            ->method('findOneBy')
+            ->with($this->callback(function ($criteria) {
+                return is_array($criteria) && isset($criteria['code']);
+            }))
             ->willReturn(null);
     }
 
@@ -221,11 +217,6 @@ class AgentCodeGeneratorTest extends TestCase
     {
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
-
-        $this->entityManager->expects($this->atLeast(3))
-            ->method('getRepository')
-            ->with(Agent::class)
-            ->willReturn($this->agentRepository);
 
         $this->agentRepository->expects($this->once())
             ->method('createQueryBuilder')
@@ -254,8 +245,9 @@ class AgentCodeGeneratorTest extends TestCase
 
         // 允许更多次调用findByCode以满足uniqueness检查
         $this->agentRepository->expects($this->atLeast(2))
-            ->method('findByCode')
-            ->willReturnCallback(function (string $code) use ($firstAgent) {
+            ->method('findOneBy')
+            ->willReturnCallback(function (array $criteria) use ($firstAgent) {
+                $code = $criteria['code'] ?? '';
                 // 第一次检查返回已存在的agent，后续检查返回null表示不存在
                 static $callCount = 0;
                 $callCount++;
@@ -268,11 +260,6 @@ class AgentCodeGeneratorTest extends TestCase
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
         $agent = new Agent();
-
-        $this->entityManager->expects($this->atLeast(2))
-            ->method('getRepository')
-            ->with(Agent::class)
-            ->willReturn($this->agentRepository);
 
         $this->agentRepository->expects($this->once())
             ->method('createQueryBuilder')
@@ -301,11 +288,11 @@ class AgentCodeGeneratorTest extends TestCase
 
         // 模拟前100次调用都返回存在的代理，最后返回null
         $this->agentRepository->expects($this->atLeast(1))
-            ->method('findByCode')
-            ->willReturnCallback(function() {
+            ->method('findOneBy')
+            ->willReturnCallback(function () {
                 static $callCount = 0;
                 $callCount++;
                 return $callCount <= 100 ? new Agent() : null;
             });
     }
-} 
+}

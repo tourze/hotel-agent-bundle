@@ -9,6 +9,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\BillAuditLog;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
+use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
 use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
 
 /**
@@ -19,6 +20,7 @@ class BillAuditService
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly BillAuditLogRepository $billAuditLogRepository,
+        private readonly AgentBillRepository $agentBillRepository,
         private readonly LoggerInterface $logger,
         private readonly RequestStack $requestStack,
         private readonly Security $security
@@ -130,7 +132,7 @@ class BillAuditService
     public function getAuditStatistics(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
         $rawData = $this->billAuditLogRepository->getAuditStatistics($startDate, $endDate);
-        
+
         $statistics = [
             'total_actions' => 0,
             'actions_by_type' => [],
@@ -143,7 +145,7 @@ class BillAuditService
             $date = $row['date'];
 
             $statistics['total_actions'] += $count;
-            
+
             if (!isset($statistics['actions_by_type'][$action])) {
                 $statistics['actions_by_type'][$action] = 0;
             }
@@ -164,18 +166,17 @@ class BillAuditService
     public function batchAuditBills(array $billIds, string $action, ?string $remarks = null): array
     {
         $results = [];
-        
+
         foreach ($billIds as $billId) {
             try {
-                $bill = $this->entityManager->getRepository(AgentBill::class)->find($billId);
-                if (!$bill) {
+                $bill = $this->agentBillRepository->find($billId);
+                if (null === $bill) {
                     $results[$billId] = ['success' => false, 'error' => '账单不存在'];
                     continue;
                 }
 
                 $this->logAuditAction($bill, $action, $remarks);
                 $results[$billId] = ['success' => true];
-                
             } catch (\Throwable $e) {
                 $results[$billId] = ['success' => false, 'error' => $e->getMessage()];
                 $this->logger->error('批量审核账单失败', [
@@ -195,7 +196,7 @@ class BillAuditService
     {
         // 根据账单状态和操作类型验证权限
         $currentStatus = $agentBill->getStatus();
-        
+
         return match ($action) {
             '确认账单' => $currentStatus === BillStatusEnum::PENDING,
             '重新计算' => $currentStatus !== BillStatusEnum::PAID,
@@ -211,7 +212,7 @@ class BillAuditService
     private function getCurrentUserName(): ?string
     {
         $user = $this->security->getUser();
-        return $user ? $user->getUserIdentifier() : null;
+        return null !== $user ? $user->getUserIdentifier() : null;
     }
 
     /**
@@ -220,7 +221,7 @@ class BillAuditService
     private function getCurrentIpAddress(): ?string
     {
         $request = $this->requestStack->getCurrentRequest();
-        return $request ? $request->getClientIp() : null;
+        return null !== $request ? $request->getClientIp() : null;
     }
 
     /**
@@ -229,7 +230,7 @@ class BillAuditService
     public function exportAuditLogs(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
         $logs = $this->billAuditLogRepository->findByDateRange($startDate, $endDate);
-        
+
         $exportData = [];
         foreach ($logs as $log) {
             $exportData[] = [
@@ -249,4 +250,4 @@ class BillAuditService
 
         return $exportData;
     }
-} 
+}

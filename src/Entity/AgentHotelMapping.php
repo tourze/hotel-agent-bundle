@@ -6,7 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
-use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
+use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Repository\AgentHotelMappingRepository;
 use Tourze\HotelProfileBundle\Entity\Hotel;
 
@@ -16,9 +16,11 @@ use Tourze\HotelProfileBundle\Entity\Hotel;
 class AgentHotelMapping implements Stringable
 {
     use TimestampableAware;
+    use CreatedByAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'hotelMappings')]
@@ -30,14 +32,12 @@ class AgentHotelMapping implements Stringable
     private ?Hotel $hotel = null;
 
     #[ORM\Column(type: Types::JSON, options: ['comment' => '可见房型ID数组'])]
-    private array $roomTypeIds = [];#[CreatedByColumn]
-    #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $createdBy = null;
+    private array $roomTypeIds = [];
 
     public function __toString(): string
     {
-        $agentName = $this->agent ? $this->agent->getCompanyName() : 'Unknown';
-        $hotelName = $this->hotel ? $this->hotel->getName() : 'Unknown';
+        $agentName = $this->agent !== null ? $this->agent->getCompanyName() : 'Unknown';
+        $hotelName = $this->hotel !== null ? $this->hotel->getName() : 'Unknown';
         return sprintf('%s - %s', $agentName, $hotelName);
     }
 
@@ -96,7 +96,5 @@ class AgentHotelMapping implements Stringable
     public function hasRoomTypeId(int $roomTypeId): bool
     {
         return in_array($roomTypeId, $this->roomTypeIds);
-    }public function getCreatedBy(): ?int
-    {
-        return $this->createdBy;
-    }} 
+    }
+}

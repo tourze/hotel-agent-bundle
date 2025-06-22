@@ -34,8 +34,8 @@ class OrderItemTest extends TestCase
         $roomType = $this->createMock(RoomType::class);
         $roomType->method('getName')->willReturn('标准间');
 
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-02');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-02');
 
         $this->orderItem->setHotel($hotel)
             ->setRoomType($roomType)
@@ -47,8 +47,8 @@ class OrderItemTest extends TestCase
 
     public function test_toString_with_unknown_hotel_and_roomtype(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-02');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-02');
 
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut);
@@ -103,8 +103,8 @@ class OrderItemTest extends TestCase
 
     public function test_setCheckInDate_calculates_amount(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-03');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-03');
         $this->orderItem->setCheckOutDate($checkOut)
             ->setUnitPrice('100.00');
 
@@ -117,8 +117,8 @@ class OrderItemTest extends TestCase
 
     public function test_setCheckOutDate_calculates_amount(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-04');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-04');
         $this->orderItem->setCheckInDate($checkIn)
             ->setUnitPrice('50.00');
 
@@ -131,8 +131,8 @@ class OrderItemTest extends TestCase
 
     public function test_setUnitPrice_calculates_amount(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-03');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-03');
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut);
 
@@ -145,8 +145,8 @@ class OrderItemTest extends TestCase
 
     public function test_setCostPrice_calculates_profit(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-03');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-03');
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut)
             ->setUnitPrice('100.00');
@@ -160,8 +160,8 @@ class OrderItemTest extends TestCase
 
     public function test_setAmount_calculates_profit(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-03');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-03');
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut)
             ->setCostPrice('60.00');
@@ -313,8 +313,8 @@ class OrderItemTest extends TestCase
 
     public function test_amount_calculation_with_zero_nights(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-01'); // 同一天
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-01'); // 同一天
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut)
             ->setUnitPrice('100.00');
@@ -324,8 +324,8 @@ class OrderItemTest extends TestCase
 
     public function test_profit_calculation_with_zero_cost(): void
     {
-        $checkIn = new \DateTime('2024-01-01');
-        $checkOut = new \DateTime('2024-01-03');
+        $checkIn = new \DateTimeImmutable('2024-01-01');
+        $checkOut = new \DateTimeImmutable('2024-01-03');
         $this->orderItem->setCheckInDate($checkIn)
             ->setCheckOutDate($checkOut)
             ->setUnitPrice('100.00')

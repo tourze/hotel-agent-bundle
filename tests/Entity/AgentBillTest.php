@@ -94,7 +94,7 @@ class AgentBillTest extends TestCase
 
     public function test_setConfirmTime_with_valid_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         $this->bill->setConfirmTime($time);
 
         $this->assertSame($time, $this->bill->getConfirmTime());
@@ -109,7 +109,7 @@ class AgentBillTest extends TestCase
 
     public function test_setPayTime_with_valid_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         $this->bill->setPayTime($time);
 
         $this->assertSame($time, $this->bill->getPayTime());
@@ -258,7 +258,7 @@ class AgentBillTest extends TestCase
 
     public function test_setUpdateTime_sets_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         $this->bill->setUpdateTime($time);
 
         $this->assertSame($time, $this->bill->getUpdateTime());

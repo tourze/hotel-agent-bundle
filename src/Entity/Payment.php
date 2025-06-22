@@ -6,7 +6,7 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Stringable;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
-use Tourze\DoctrineUserBundle\Attribute\CreatedByColumn;
+use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\PaymentMethodEnum;
 use Tourze\HotelAgentBundle\Enum\PaymentStatusEnum;
 use Tourze\HotelAgentBundle\Repository\PaymentRepository;
@@ -19,9 +19,11 @@ use Tourze\HotelAgentBundle\Repository\PaymentRepository;
 class Payment implements Stringable
 {
     use TimestampableAware;
+    use CreatedByAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
-    #[ORM\Column(type: Types::BIGINT)]
+    #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: AgentBill::class)]
@@ -49,19 +51,17 @@ class Payment implements Stringable
     #[ORM\Column(type: Types::STRING, length: 200, nullable: true, options: ['comment' => '电子签章URL'])]
     private ?string $digitalSignatureUrl = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '支付时间'])]
-    private ?\DateTimeInterface $paymentTime = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '支付时间'])]
+    private ?\DateTimeImmutable $paymentTime = null;
 
-    #[ORM\Column(type: Types::DATETIME_MUTABLE, nullable: true, options: ['comment' => '确认时间'])]
-    private ?\DateTimeInterface $confirmTime = null;
+    #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '确认时间'])]
+    private ?\DateTimeImmutable $confirmTime = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '备注'])]
     private ?string $remarks = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '失败原因'])]
-    private ?string $failureReason = null;#[CreatedByColumn]
-    #[ORM\Column(type: Types::BIGINT, nullable: true)]
-    private ?int $createdBy = null;
+    private ?string $failureReason = null;
 
     public function __toString(): string
     {
@@ -161,23 +161,23 @@ class Payment implements Stringable
         return $this;
     }
 
-    public function getPaymentTime(): ?\DateTimeInterface
+    public function getPaymentTime(): ?\DateTimeImmutable
     {
         return $this->paymentTime;
     }
 
-    public function setPaymentTime(?\DateTimeInterface $paymentTime): self
+    public function setPaymentTime(?\DateTimeImmutable $paymentTime): self
     {
         $this->paymentTime = $paymentTime;
         return $this;
     }
 
-    public function getConfirmTime(): ?\DateTimeInterface
+    public function getConfirmTime(): ?\DateTimeImmutable
     {
         return $this->confirmTime;
     }
 
-    public function setConfirmTime(?\DateTimeInterface $confirmTime): self
+    public function setConfirmTime(?\DateTimeImmutable $confirmTime): self
     {
         $this->confirmTime = $confirmTime;
         return $this;
@@ -203,9 +203,6 @@ class Payment implements Stringable
     {
         $this->failureReason = $failureReason;
         return $this;
-    }public function getCreatedBy(): ?int
-    {
-        return $this->createdBy;
     }
 
     /**
@@ -214,8 +211,8 @@ class Payment implements Stringable
     public function markAsSuccess(?string $transactionId = null): self
     {
         $this->status = PaymentStatusEnum::SUCCESS;
-        $this->paymentTime = new \DateTime();
-        if ($transactionId) {
+        $this->paymentTime = new \DateTimeImmutable();
+        if (null !== $transactionId) {
             $this->transactionId = $transactionId;
         }
         return $this;
@@ -237,7 +234,7 @@ class Payment implements Stringable
     public function confirm(): self
     {
         if ($this->status === PaymentStatusEnum::SUCCESS) {
-            $this->confirmTime = new \DateTime();
+            $this->confirmTime = new \DateTimeImmutable();
         }
         return $this;
     }
@@ -251,4 +248,5 @@ class Payment implements Stringable
             $this->paymentNo = 'PAY' . date('YmdHis') . rand(1000, 9999);
         }
         return $this;
-    }} 
+    }
+}

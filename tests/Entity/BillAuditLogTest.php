@@ -21,7 +21,7 @@ class BillAuditLogTest extends TestCase
 
     public function test_toString_returns_action_and_time(): void
     {
-        $time = new \DateTime('2024-01-01 10:00:00');
+        $time = new \DateTimeImmutable('2024-01-01 10:00:00');
         $this->auditLog->setAction('测试操作')
             ->setCreateTime($time);
 
@@ -260,7 +260,7 @@ class BillAuditLogTest extends TestCase
 
     public function test_setCreateTime_sets_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
 
         $this->auditLog->setCreateTime($time);
 

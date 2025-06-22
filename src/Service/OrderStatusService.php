@@ -43,7 +43,7 @@ class OrderStatusService
                 $orderItem->setLastModifiedBy($operatorId);
 
                 // 将对应的库存状态从 PENDING 改为 SOLD
-                if ($orderItem->getDailyInventory()) {
+                if (null !== $orderItem->getDailyInventory()) {
                     $dailyInventory = $orderItem->getDailyInventory();
                     $dailyInventory->setStatus(DailyInventoryStatusEnum::SOLD);
                     $this->entityManager->persist($dailyInventory);
@@ -202,7 +202,7 @@ class OrderStatusService
     {
         foreach ($order->getOrderItems() as $orderItem) {
             // 如果订单项有分配的库存，则释放它
-            if ($orderItem->getDailyInventory()) {
+            if (null !== $orderItem->getDailyInventory()) {
                 $dailyInventory = $orderItem->getDailyInventory();
                 // 将库存状态重置为可用
                 $dailyInventory->setStatus(DailyInventoryStatusEnum::AVAILABLE);
@@ -266,7 +266,7 @@ class OrderStatusService
                 $checkInDate = $orderItem->getCheckInDate();
                 $checkOutDate = $orderItem->getCheckOutDate();
                 
-                if (!$hotel || !$roomType || !$checkInDate || !$checkOutDate) {
+                if (null === $hotel || null === $roomType || null === $checkInDate || null === $checkOutDate) {
                     continue;
                 }
                 

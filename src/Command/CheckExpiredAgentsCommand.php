@@ -18,11 +18,12 @@ use Tourze\HotelAgentBundle\Repository\AgentRepository;
  * 用于定期检查并更新过期代理账户状态
  */
 #[AsCommand(
-    name: 'agent:check-expired',
+    name: self::NAME,
     description: '检查并更新过期的代理账户状态',
 )]
 class CheckExpiredAgentsCommand extends Command
 {
+    public const NAME = 'agent:check-expired';
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly AgentRepository $agentRepository
@@ -72,7 +73,7 @@ class CheckExpiredAgentsCommand extends Command
                     $agent->getStatus()->getLabel(),
                 ];
 
-                if (!$dryRun) {
+                if (false === $dryRun) {
                     $agent->setStatus(AgentStatusEnum::EXPIRED);
                     $this->entityManager->persist($agent);
                     $updatedCount++;
@@ -81,7 +82,7 @@ class CheckExpiredAgentsCommand extends Command
 
             $io->table(['代理编号', '公司名称', '联系人', '过期日期', '当前状态'], $tableData);
 
-            if (!$dryRun) {
+            if (false === $dryRun) {
                 $this->entityManager->flush();
                 $io->success(sprintf('已更新 %d 个过期代理的状态', $updatedCount));
             } else {

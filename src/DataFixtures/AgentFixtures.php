@@ -33,7 +33,7 @@ class AgentFixtures extends Fixture
             ->setEmail('zhang@youxuan.com')
             ->setLevel(AgentLevelEnum::A)
             ->setStatus(AgentStatusEnum::ACTIVE)
-            ->setExpiryDate(new \DateTime('+1 year'));
+            ->setExpiryDate(new \DateTimeImmutable('+1 year'));
         
         $manager->persist($agent1);
 
@@ -46,7 +46,7 @@ class AgentFixtures extends Fixture
             ->setEmail('li@kuaile.com')
             ->setLevel(AgentLevelEnum::B)
             ->setStatus(AgentStatusEnum::ACTIVE)
-            ->setExpiryDate(new \DateTime('+6 months'));
+            ->setExpiryDate(new \DateTimeImmutable('+6 months'));
         
         $manager->persist($agent2);
 
@@ -83,7 +83,7 @@ class AgentFixtures extends Fixture
             ->setEmail('qian@guoqi.com')
             ->setLevel(AgentLevelEnum::C)
             ->setStatus(AgentStatusEnum::EXPIRED)
-            ->setExpiryDate(new \DateTime('-1 month'));
+            ->setExpiryDate(new \DateTimeImmutable('-1 month'));
         
         $manager->persist($agent5);
 

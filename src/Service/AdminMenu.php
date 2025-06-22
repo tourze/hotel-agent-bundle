@@ -24,7 +24,7 @@ class AdminMenu implements MenuProviderInterface
 
     public function __invoke(ItemInterface $item): void
     {
-        if (!$item->getChild('代理管理')) {
+        if (null === $item->getChild('代理管理')) {
             $item->addChild('代理管理');
         }
         $subMenu = $item->getChild('代理管理');
@@ -38,7 +38,7 @@ class AdminMenu implements MenuProviderInterface
             ->setUri($this->linkGenerator->getCurdListPage(AgentHotelMapping::class))
             ->setAttribute('icon', 'fas fa-shield-alt');
 
-        if (!$item->getChild('财务结算')) {
+        if (null === $item->getChild('财务结算')) {
             $item->addChild('财务结算');
         }
         $subMenu = $item->getChild('财务结算');

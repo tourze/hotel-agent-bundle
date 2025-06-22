@@ -16,6 +16,7 @@ use Tourze\HotelAgentBundle\Enum\AgentLevelEnum;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
+use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelAgentBundle\Repository\OrderRepository;
 use Tourze\HotelAgentBundle\Service\AgentBillService;
 use Tourze\HotelAgentBundle\Service\BillAuditService;
@@ -25,6 +26,7 @@ class AgentBillServiceTest extends TestCase
     private EntityManagerInterface|MockObject $entityManager;
     private AgentBillRepository|MockObject $agentBillRepository;
     private OrderRepository|MockObject $orderRepository;
+    private AgentRepository|MockObject $agentRepository;
     private LoggerInterface|MockObject $logger;
     private BillAuditService|MockObject $billAuditService;
     private AgentBillService $service;
@@ -34,13 +36,15 @@ class AgentBillServiceTest extends TestCase
         $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->agentBillRepository = $this->createMock(AgentBillRepository::class);
         $this->orderRepository = $this->createMock(OrderRepository::class);
+        $this->agentRepository = $this->createMock(AgentRepository::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->billAuditService = $this->createMock(BillAuditService::class);
-        
+
         $this->service = new AgentBillService(
             $this->entityManager,
             $this->agentBillRepository,
             $this->orderRepository,
+            $this->agentRepository,
             $this->logger,
             $this->billAuditService
         );
@@ -49,35 +53,8 @@ class AgentBillServiceTest extends TestCase
     public function test_generateMonthlyBills_with_no_agents(): void
     {
         $billMonth = '2025-01';
-        
-        $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
-        $queryBuilder = $this->createMock(QueryBuilder::class);
-        $query = $this->createMock(Query::class);
-        
-        $this->entityManager->expects($this->once())
-            ->method('getRepository')
-            ->with(Agent::class)
-            ->willReturn($repository);
-            
-        $repository->expects($this->once())
-            ->method('createQueryBuilder')
-            ->with('a')
-            ->willReturn($queryBuilder);
-            
-        $queryBuilder->expects($this->once())
-            ->method('andWhere')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('setParameter')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($query);
-            
-        $query->expects($this->once())
-            ->method('getResult')
-            ->willReturn([]);
-            
+
+        $this->setupAgentRepository([]);
         $this->entityManager->expects($this->once())
             ->method('flush');
 
@@ -91,9 +68,9 @@ class AgentBillServiceTest extends TestCase
         $billMonth = '2025-01';
         $agent = $this->createMockAgent();
         $existingBill = new AgentBill();
-        
+
         $this->setupAgentRepository([$agent]);
-        
+
         $this->agentBillRepository->expects($this->once())
             ->method('findOneBy')
             ->with(['agent' => $agent, 'billMonth' => $billMonth])
@@ -113,10 +90,10 @@ class AgentBillServiceTest extends TestCase
         $billMonth = '2025-01';
         $agent = $this->createMockAgent();
         $existingBill = new AgentBill();
-        
+
         $this->setupAgentRepository([$agent]);
         $this->setupOrderRepository($agent, []);
-        
+
         $this->agentBillRepository->expects($this->once())
             ->method('findOneBy')
             ->with(['agent' => $agent, 'billMonth' => $billMonth])
@@ -125,7 +102,7 @@ class AgentBillServiceTest extends TestCase
         $this->entityManager->expects($this->once())
             ->method('remove')
             ->with($existingBill);
-            
+
         $this->billAuditService->expects($this->once())
             ->method('logAuditAction')
             ->with($existingBill, '强制重新生成', '删除旧账单并重新生成');
@@ -141,7 +118,7 @@ class AgentBillServiceTest extends TestCase
         $billMonth = '2025-01';
         $startDate = new \DateTime('2025-01-01 00:00:00');
         $endDate = new \DateTime('2025-01-31 23:59:59');
-        
+
         $this->setupOrderRepository($agent, []);
 
         $result = $this->service->generateAgentBill($agent, $billMonth, $startDate, $endDate);
@@ -155,10 +132,10 @@ class AgentBillServiceTest extends TestCase
         $billMonth = '2025-01';
         $startDate = new \DateTime('2025-01-01 00:00:00');
         $endDate = new \DateTime('2025-01-31 23:59:59');
-        
+
         $orders = [$this->createMockOrder($agent, '1000.00')];
         $this->setupOrderRepository($agent, $orders);
-        
+
         $this->entityManager->expects($this->once())
             ->method('persist')
             ->with($this->isInstanceOf(AgentBill::class));
@@ -176,10 +153,10 @@ class AgentBillServiceTest extends TestCase
     {
         $bill = new AgentBill();
         $bill->setStatus(BillStatusEnum::PENDING);
-        
+
         $this->entityManager->expects($this->once())
             ->method('flush');
-            
+
         $this->billAuditService->expects($this->once())
             ->method('logStatusChange')
             ->with($bill, BillStatusEnum::PENDING, BillStatusEnum::CONFIRMED, null);
@@ -195,7 +172,7 @@ class AgentBillServiceTest extends TestCase
     {
         $bill = new AgentBill();
         $bill->setStatus(BillStatusEnum::CONFIRMED);
-        
+
         $this->logger->expects($this->once())
             ->method('warning')
             ->with('账单状态不正确，无法确认', $this->anything());
@@ -227,13 +204,13 @@ class AgentBillServiceTest extends TestCase
             ->setOrderCount(5)
             ->setTotalAmount('500.00')
             ->setCommissionAmount('25.00');
-            
+
         $orders = [$this->createMockOrder($agent, '1000.00')];
         $this->setupOrderRepository($agent, $orders);
-        
+
         $this->entityManager->expects($this->once())
             ->method('flush');
-            
+
         $this->billAuditService->expects($this->once())
             ->method('logRecalculation')
             ->with($bill, $this->anything(), $this->anything(), null);
@@ -249,10 +226,10 @@ class AgentBillServiceTest extends TestCase
         $bill = new AgentBill();
         $bill->setStatus(BillStatusEnum::CONFIRMED);
         $reference = 'PAY20250101001';
-        
+
         $this->entityManager->expects($this->once())
             ->method('flush');
-            
+
         $this->billAuditService->expects($this->once())
             ->method('logStatusChange')
             ->with($bill, BillStatusEnum::CONFIRMED, BillStatusEnum::PAID, null);
@@ -269,7 +246,7 @@ class AgentBillServiceTest extends TestCase
     {
         $bill = new AgentBill();
         $bill->setStatus(BillStatusEnum::PENDING);
-        
+
         $this->logger->expects($this->once())
             ->method('warning')
             ->with('只有已确认的账单才能标记为已支付', $this->anything());
@@ -285,14 +262,14 @@ class AgentBillServiceTest extends TestCase
         $agent = $this->createMockAgent();
         $status = BillStatusEnum::CONFIRMED;
         $billMonth = '2025-01';
-        
+
         $queryBuilder = $this->createMock(QueryBuilder::class);
-        
+
         $this->agentBillRepository->expects($this->once())
             ->method('createQueryBuilder')
             ->with('ab')
             ->willReturn($queryBuilder);
-            
+
         $queryBuilder->expects($this->exactly(3))
             ->method('andWhere')
             ->willReturnSelf();
@@ -314,12 +291,12 @@ class AgentBillServiceTest extends TestCase
         $queryBuilder->expects($this->once())
             ->method('setMaxResults')
             ->willReturnSelf();
-            
+
         $query = $this->createMock(Query::class);
         $queryBuilder->expects($this->once())
             ->method('getQuery')
             ->willReturn($query);
-            
+
         $query->expects($this->once())
             ->method('getResult')
             ->willReturn([]);
@@ -336,15 +313,15 @@ class AgentBillServiceTest extends TestCase
             ['status' => 'pending', 'bill_count' => 5, 'total_amount' => '5000.00', 'total_commission' => '250.00'],
             ['status' => 'confirmed', 'bill_count' => 3, 'total_amount' => '3000.00', 'total_commission' => '150.00'],
         ];
-        
+
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
-        
+
         $this->agentBillRepository->expects($this->once())
             ->method('createQueryBuilder')
             ->with('ab')
             ->willReturn($queryBuilder);
-            
+
         $queryBuilder->expects($this->once())
             ->method('select')
             ->willReturnSelf();
@@ -360,7 +337,7 @@ class AgentBillServiceTest extends TestCase
         $queryBuilder->expects($this->once())
             ->method('getQuery')
             ->willReturn($query);
-            
+
         $query->expects($this->once())
             ->method('getResult')
             ->willReturn($expectedData);
@@ -374,7 +351,7 @@ class AgentBillServiceTest extends TestCase
     {
         $startDate = new \DateTime('2025-01-01');
         $endDate = new \DateTime('2025-01-31');
-        
+
         $agent = $this->createMockAgent();
         $bill1 = new AgentBill();
         $bill1->setAgent($agent)
@@ -382,24 +359,24 @@ class AgentBillServiceTest extends TestCase
             ->setStatus(BillStatusEnum::CONFIRMED)
             ->setTotalAmount('1000.00')
             ->setCommissionAmount('100.00');
-            
+
         $bill2 = new AgentBill();
         $bill2->setAgent($agent)
             ->setBillMonth('2025-01')
             ->setStatus(BillStatusEnum::PAID)
             ->setTotalAmount('2000.00')
             ->setCommissionAmount('200.00');
-        
+
         $bills = [$bill1, $bill2];
-        
+
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
-        
+
         $this->agentBillRepository->expects($this->once())
             ->method('createQueryBuilder')
             ->with('ab')
             ->willReturn($queryBuilder);
-            
+
         $queryBuilder->expects($this->once())
             ->method('andWhere')
             ->willReturnSelf();
@@ -418,7 +395,7 @@ class AgentBillServiceTest extends TestCase
         $queryBuilder->expects($this->once())
             ->method('getQuery')
             ->willReturn($query);
-            
+
         $query->expects($this->once())
             ->method('getResult')
             ->willReturn($bills);
@@ -450,31 +427,25 @@ class AgentBillServiceTest extends TestCase
             ->setOrderNo('ORD001')
             ->setTotalAmount($totalAmount)
             ->setStatus(OrderStatusEnum::CONFIRMED);
-            
+
         $orderItem = new OrderItem();
         $orderItem->setAmount('500.00')
             ->setCostPrice('400.00');
         $order->addOrderItem($orderItem);
-        
+
         return $order;
     }
 
     private function setupAgentRepository(array $agents): void
     {
-        $repository = $this->createMock(\Doctrine\ORM\EntityRepository::class);
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
-        
-        $this->entityManager->expects($this->once())
-            ->method('getRepository')
-            ->with(Agent::class)
-            ->willReturn($repository);
-            
-        $repository->expects($this->once())
+
+        $this->agentRepository->expects($this->once())
             ->method('createQueryBuilder')
             ->with('a')
             ->willReturn($queryBuilder);
-            
+
         $queryBuilder->expects($this->once())
             ->method('andWhere')
             ->willReturnSelf();
@@ -484,7 +455,7 @@ class AgentBillServiceTest extends TestCase
         $queryBuilder->expects($this->once())
             ->method('getQuery')
             ->willReturn($query);
-            
+
         $query->expects($this->once())
             ->method('getResult')
             ->willReturn($agents);
@@ -494,12 +465,12 @@ class AgentBillServiceTest extends TestCase
     {
         $queryBuilder = $this->createMock(QueryBuilder::class);
         $query = $this->createMock(Query::class);
-        
+
         $this->orderRepository->expects($this->once())
             ->method('createQueryBuilder')
             ->with('o')
             ->willReturn($queryBuilder);
-            
+
         $queryBuilder->expects($this->exactly(3))
             ->method('andWhere')
             ->willReturnSelf();
@@ -509,9 +480,9 @@ class AgentBillServiceTest extends TestCase
         $queryBuilder->expects($this->once())
             ->method('getQuery')
             ->willReturn($query);
-            
+
         $query->expects($this->once())
             ->method('getResult')
             ->willReturn($orders);
     }
-} 
+}

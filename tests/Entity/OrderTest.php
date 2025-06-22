@@ -133,7 +133,7 @@ class OrderTest extends TestCase
 
     public function test_setCancelTime_with_time(): void
     {
-        $time = new \DateTime();
+        $time = new \DateTimeImmutable();
         $this->order->setCancelTime($time);
 
         $this->assertSame($time, $this->order->getCancelTime());

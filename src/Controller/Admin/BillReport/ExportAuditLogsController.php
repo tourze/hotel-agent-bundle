@@ -17,7 +17,7 @@ class ExportAuditLogsController extends AbstractController
         private readonly BillAuditService $billAuditService
     ) {}
 
-    #[Route('/admin/bill-report/export-audit-logs', name: 'admin_bill_report_export_audit_logs', methods: ['POST'])]
+    #[Route(path: '/admin/bill-report/export-audit-logs', name: 'admin_bill_report_export_audit_logs', methods: ['POST'])]
     public function __invoke(Request $request): Response
     {
         try {

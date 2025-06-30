@@ -6,6 +6,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Tourze\HotelAgentBundle\Exception\OrderProcessingException;
 use Tourze\HotelContractBundle\Service\InventoryQueryService;
 
 /**
@@ -17,7 +18,7 @@ class AjaxInventoryController extends AbstractController
         private readonly InventoryQueryService $inventoryQueryService
     ) {}
 
-    #[Route('/admin/order/ajax/inventory', name: 'admin_order_ajax_inventory', methods: ['POST'])]
+    #[Route(path: '/admin/order/ajax/inventory', name: 'admin_order_ajax_inventory', methods: ['POST'])]
     public function __invoke(Request $request): Response
     {
         try {
@@ -27,7 +28,7 @@ class AjaxInventoryController extends AbstractController
             $roomCount = (int)$request->request->get('room_count', 1);
 
             if (null === $roomTypeId || null === $checkInDate || null === $checkOutDate) {
-                throw new \Exception('参数不完整');
+                throw new OrderProcessingException('参数不完整');
             }
 
             $data = $this->inventoryQueryService->getInventoryData(
@@ -41,7 +42,6 @@ class AjaxInventoryController extends AbstractController
                 'success' => true,
                 'data' => $data
             ]);
-
         } catch (\Throwable $e) {
             return $this->json([
                 'success' => false,

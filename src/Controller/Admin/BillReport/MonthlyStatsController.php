@@ -17,7 +17,7 @@ class MonthlyStatsController extends AbstractController
         private readonly AgentBillService $agentBillService
     ) {}
 
-    #[Route('/admin/bill-report/monthly-stats/{billMonth}', name: 'admin_bill_report_monthly_stats')]
+    #[Route(path: '/admin/bill-report/monthly-stats/{billMonth}', name: 'admin_bill_report_monthly_stats')]
     public function __invoke(string $billMonth): JsonResponse
     {
         try {

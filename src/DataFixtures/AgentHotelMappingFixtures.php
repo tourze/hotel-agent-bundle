@@ -11,7 +11,7 @@ use Tourze\HotelProfileBundle\Entity\Hotel;
 
 /**
  * 代理酒店映射测试数据夹具
- * 
+ *
  * 为代理分配可见的酒店和房型权限，演示不同等级代理的权限控制逻辑
  */
 class AgentHotelMappingFixtures extends Fixture implements DependentFixtureInterface

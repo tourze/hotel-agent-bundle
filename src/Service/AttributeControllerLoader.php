@@ -9,7 +9,7 @@ use Symfony\Component\Routing\RouteCollection;
 use Tourze\HotelAgentBundle\Controller\Admin\OrderCrudController;
 use Tourze\RoutingAutoLoaderBundle\Service\RoutingAutoLoaderInterface;
 
-#[AutoconfigureTag('routing.loader')]
+#[AutoconfigureTag(name: 'routing.loader')]
 class AttributeControllerLoader extends Loader implements RoutingAutoLoaderInterface
 {
     private AttributeRouteControllerLoader $controllerLoader;

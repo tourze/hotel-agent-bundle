@@ -2,7 +2,6 @@
 
 namespace Tourze\HotelAgentBundle\Tests\Service;
 
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -13,15 +12,12 @@ use Tourze\HotelAgentBundle\Service\AgentCodeGenerator;
 
 class AgentCodeGeneratorTest extends TestCase
 {
-    /** @var EntityManagerInterface&MockObject */
-    private EntityManagerInterface $entityManager;
-    /** @var AgentRepository&MockObject */
-    private AgentRepository $agentRepository;
+
+    private AgentRepository|MockObject $agentRepository;
     private AgentCodeGenerator $generator;
 
     protected function setUp(): void
     {
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
         $this->agentRepository = $this->createMock(AgentRepository::class);
         $this->generator = new AgentCodeGenerator($this->agentRepository);
     }

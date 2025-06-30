@@ -7,6 +7,7 @@ use Psr\Log\LoggerInterface;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
+use Tourze\HotelAgentBundle\Exception\OrderProcessingException;
 use Tourze\HotelContractBundle\Enum\DailyInventoryStatusEnum;
 use Tourze\HotelContractBundle\Service\InventorySummaryService;
 
@@ -19,8 +20,7 @@ class OrderStatusService
         private readonly EntityManagerInterface $entityManager,
         private readonly LoggerInterface $logger,
         private readonly InventorySummaryService $summaryService,
-    ) {
-    }
+    ) {}
 
     /**
      * 确认订单
@@ -28,7 +28,7 @@ class OrderStatusService
     public function confirmOrder(Order $order, int $operatorId): void
     {
         if ($order->getStatus() !== OrderStatusEnum::PENDING) {
-            throw new \InvalidArgumentException('只有待确认状态的订单才能确认');
+            throw new OrderProcessingException('只有待确认状态的订单才能确认');
         }
 
         $this->entityManager->beginTransaction();
@@ -69,7 +69,6 @@ class OrderStatusService
                 'order_no' => $order->getOrderNo(),
                 'operator_id' => $operatorId,
             ]);
-
         } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单确认失败', [
@@ -87,24 +86,24 @@ class OrderStatusService
     public function cancelOrder(Order $order, string $reason, int $operatorId): void
     {
         if (!in_array($order->getStatus(), [OrderStatusEnum::PENDING, OrderStatusEnum::CONFIRMED], true)) {
-            throw new \InvalidArgumentException('订单状态不允许取消');
+            throw new OrderProcessingException('订单状态不允许取消');
         }
 
         $this->entityManager->beginTransaction();
-        
+
         try {
             // 释放已分配的库存
             $this->releaseOrderItemInventory($order);
-            
+
             // 更新订单状态
             $order->cancel($reason, $operatorId);
-            
+
             // 更新所有订单项状态
             foreach ($order->getOrderItems() as $orderItem) {
                 $orderItem->setStatus(OrderItemStatusEnum::CANCELED);
                 $orderItem->setLastModifiedBy($operatorId);
             }
-            
+
             // 记录变更历史
             $order->addChangeRecord('cancel', [
                 'status' => 'canceled',
@@ -112,21 +111,20 @@ class OrderStatusService
                 'operator_id' => $operatorId,
                 'timestamp' => new \DateTime(),
             ], $operatorId);
-            
+
             $this->entityManager->persist($order);
             $this->entityManager->flush();
             $this->entityManager->commit();
-            
+
             // 更新库存统计（在事务提交后）
             $this->updateInventoryStatisticsForOrder($order);
-            
+
             $this->logger->info('订单取消成功', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
                 'reason' => $reason,
                 'operator_id' => $operatorId,
             ]);
-            
         } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单取消失败', [
@@ -144,24 +142,24 @@ class OrderStatusService
     public function closeOrder(Order $order, string $reason, int $operatorId): void
     {
         if ($order->getStatus() !== OrderStatusEnum::CONFIRMED) {
-            throw new \InvalidArgumentException('只有已确认状态的订单才能关闭');
+            throw new OrderProcessingException('只有已确认状态的订单才能关闭');
         }
 
         $this->entityManager->beginTransaction();
-        
+
         try {
             // 释放已分配的库存
             $this->releaseOrderItemInventory($order);
-            
+
             // 更新订单状态
             $order->close($reason, $operatorId);
-            
+
             // 更新所有订单项状态
             foreach ($order->getOrderItems() as $orderItem) {
                 $orderItem->setStatus(OrderItemStatusEnum::COMPLETED);
                 $orderItem->setLastModifiedBy($operatorId);
             }
-            
+
             // 记录变更历史
             $order->addChangeRecord('close', [
                 'status' => 'closed',
@@ -169,7 +167,7 @@ class OrderStatusService
                 'operator_id' => $operatorId,
                 'timestamp' => new \DateTime(),
             ], $operatorId);
-            
+
             $this->entityManager->persist($order);
             $this->entityManager->flush();
             $this->entityManager->commit();
@@ -183,7 +181,6 @@ class OrderStatusService
                 'reason' => $reason,
                 'operator_id' => $operatorId,
             ]);
-            
         } catch (\Throwable $e) {
             $this->entityManager->rollback();
             $this->logger->error('订单关闭失败', [
@@ -207,7 +204,7 @@ class OrderStatusService
                 // 将库存状态重置为可用
                 $dailyInventory->setStatus(DailyInventoryStatusEnum::AVAILABLE);
                 $this->entityManager->persist($dailyInventory);
-                
+
                 // 解除订单项与库存的关联
                 $orderItem->setDailyInventory(null);
                 $this->entityManager->persist($orderItem);
@@ -224,7 +221,7 @@ class OrderStatusService
             $orderItem->setStatus($status);
             $this->entityManager->persist($orderItem);
         }
-        
+
         $this->entityManager->flush();
     }
 
@@ -259,34 +256,33 @@ class OrderStatusService
     {
         try {
             $updatedDates = [];
-            
+
             foreach ($order->getOrderItems() as $orderItem) {
                 $hotel = $orderItem->getHotel();
                 $roomType = $orderItem->getRoomType();
                 $checkInDate = $orderItem->getCheckInDate();
                 $checkOutDate = $orderItem->getCheckOutDate();
-                
+
                 if (null === $hotel || null === $roomType || null === $checkInDate || null === $checkOutDate) {
                     continue;
                 }
-                
+
                 // 为入住日期到退房日期之间的每一天更新统计
                 $currentDate = new \DateTime($checkInDate->format('Y-m-d'));
                 $endDate = new \DateTime($checkOutDate->format('Y-m-d'));
-                
+
                 while ($currentDate < $endDate) {
                     $this->summaryService->syncInventorySummary(clone $currentDate);
                     $updatedDates[] = $currentDate->format('Y-m-d');
                     $currentDate->modify('+1 day');
                 }
             }
-            
+
             $this->logger->info('订单库存统计更新成功', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
                 'updated_dates' => array_unique($updatedDates)
             ]);
-            
         } catch (\Throwable $e) {
             // 库存统计更新失败不影响订单操作，只记录日志
             $this->logger->error('订单库存统计更新失败', [

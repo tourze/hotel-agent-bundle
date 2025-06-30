@@ -11,6 +11,7 @@ use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
+use Tourze\HotelAgentBundle\Exception\OrderProcessingException;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelContractBundle\Entity\DailyInventory;
 use Tourze\HotelContractBundle\Enum\DailyInventoryStatusEnum;
@@ -38,7 +39,7 @@ class OrderCreationService
         $requiredFields = ['agent_id', 'room_type_id', 'check_in_date', 'check_out_date', 'room_count'];
         foreach ($requiredFields as $field) {
             if (empty($formData[$field])) {
-                throw new \Exception("字段 {$field} 不能为空");
+                throw new OrderProcessingException("字段 {$field} 不能为空");
             }
         }
     }
@@ -101,7 +102,7 @@ class OrderCreationService
     {
         $agent = $this->agentRepository->find($agentId);
         if (null === $agent) {
-            throw new \Exception('代理商不存在');
+            throw new OrderProcessingException('代理商不存在');
         }
         return $agent;
     }
@@ -113,7 +114,7 @@ class OrderCreationService
     {
         $roomType = $this->roomTypeRepository->find($roomTypeId);
         if (null === $roomType) {
-            throw new \Exception('房型不存在');
+            throw new OrderProcessingException('房型不存在');
         }
         return $roomType;
     }
@@ -124,7 +125,7 @@ class OrderCreationService
     public function validateDateRange(\DateTimeImmutable $checkInDate, \DateTimeImmutable $checkOutDate): void
     {
         if ($checkOutDate <= $checkInDate) {
-            throw new \Exception('退房日期必须晚于入住日期');
+            throw new OrderProcessingException('退房日期必须晚于入住日期');
         }
     }
 
@@ -161,7 +162,7 @@ class OrderCreationService
             ->find($inventoryId);
 
         if (null === $dailyInventory) {
-            throw new \Exception("日期 {$dateStr} 选择的库存不存在");
+            throw new OrderProcessingException("日期 {$dateStr} 选择的库存不存在");
         }
 
         // 验证库存是否匹配房型和日期
@@ -169,12 +170,12 @@ class OrderCreationService
             $dailyInventory->getRoomType()->getId() !== $roomType->getId() ||
             $dailyInventory->getDate()->format('Y-m-d') !== $dateStr
         ) {
-            throw new \Exception("日期 {$dateStr} 选择的库存不匹配");
+            throw new OrderProcessingException("日期 {$dateStr} 选择的库存不匹配");
         }
 
         // 检查库存状态 - 只能选择可用状态的库存
         if ($dailyInventory->getStatus() !== DailyInventoryStatusEnum::AVAILABLE) {
-            throw new \Exception("日期 {$dateStr} 选择的库存已被占用或不可用，当前状态：{$dailyInventory->getStatus()->getLabel()}");
+            throw new OrderProcessingException("日期 {$dateStr} 选择的库存已被占用或不可用，当前状态：{$dailyInventory->getStatus()->getLabel()}");
         }
 
         // 占用库存 - 设置为待确认状态
@@ -249,13 +250,13 @@ class OrderCreationService
 
                 // 检查用户是否选择了该日期的库存
                 if (!isset($selectedInventories[$dateStr]) || empty($selectedInventories[$dateStr])) {
-                    throw new \Exception("请为日期 {$dateStr} 选择库存方案");
+                    throw new OrderProcessingException("请为日期 {$dateStr} 选择库存方案");
                 }
 
                 // 验证选择的库存数量是否等于房间数量
                 $selectedInventoryIds = $selectedInventories[$dateStr];
                 if (count($selectedInventoryIds) !== $roomCount) {
-                    throw new \Exception("日期 {$dateStr} 选择的库存数量（" . count($selectedInventoryIds) . "）与房间数量（{$roomCount}）不匹配");
+                    throw new OrderProcessingException("日期 {$dateStr} 选择的库存数量（" . count($selectedInventoryIds) . "）与房间数量（{$roomCount}）不匹配");
                 }
 
                 // 为每个选择的库存创建OrderItem

@@ -11,6 +11,7 @@ use Tourze\HotelAgentBundle\Entity\Payment;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 use Tourze\HotelAgentBundle\Enum\PaymentMethodEnum;
 use Tourze\HotelAgentBundle\Enum\PaymentStatusEnum;
+use Tourze\HotelAgentBundle\Exception\PaymentProcessingException;
 use Tourze\HotelAgentBundle\Repository\PaymentRepository;
 
 /**
@@ -36,16 +37,16 @@ class PaymentService
     ): Payment {
         // 验证账单状态
         if ($agentBill->getStatus() !== BillStatusEnum::CONFIRMED) {
-            throw new \RuntimeException('只有已确认的账单才能创建支付记录');
+            throw new PaymentProcessingException('只有已确认的账单才能创建支付记录');
         }
 
         // 验证金额
         if (BigDecimal::of($amount)->compareTo(BigDecimal::zero()) <= 0) {
-            throw new \InvalidArgumentException('支付金额必须大于0');
+            throw new PaymentProcessingException('支付金额必须大于0');
         }
 
         if (BigDecimal::of($amount)->compareTo(BigDecimal::of($agentBill->getCommissionAmount())) > 0) {
-            throw new \InvalidArgumentException('支付金额不能超过应付佣金');
+            throw new PaymentProcessingException('支付金额不能超过应付佣金');
         }
 
         $payment = new Payment();
@@ -86,7 +87,7 @@ class PaymentService
         }
 
         $payment->markAsSuccess($transactionId);
-        
+
         if (null !== $paymentProofUrl) {
             $payment->setPaymentProofUrl($paymentProofUrl);
         }
@@ -189,7 +190,7 @@ class PaymentService
     public function batchProcessPayments(array $paymentIds, PaymentStatusEnum $targetStatus, ?string $remarks = null): array
     {
         $results = [];
-        
+
         foreach ($paymentIds as $paymentId) {
             $payment = $this->paymentRepository->find($paymentId);
             if (null === $payment) {
@@ -203,7 +204,7 @@ class PaymentService
                         $success = $this->processPaymentSuccess($payment);
                         break;
                     case PaymentStatusEnum::FAILED:
-                        $success = $this->processPaymentFailure($payment, $remarks ?: '批量处理');
+                        $success = $this->processPaymentFailure($payment, $remarks ?? '批量处理');
                         break;
                     default:
                         $success = false;
@@ -228,7 +229,7 @@ class PaymentService
     public function getPaymentConfig(PaymentMethodEnum $paymentMethod): array
     {
         $config = $this->parameterBag->get('payment_config');
-        
+
         return $config[$paymentMethod->value] ?? [];
     }
 
@@ -238,7 +239,7 @@ class PaymentService
     public function validatePaymentParams(PaymentMethodEnum $paymentMethod, array $params): bool
     {
         $config = $this->getPaymentConfig($paymentMethod);
-        
+
         // 检查必需参数
         $requiredParams = $config['required_params'] ?? [];
         foreach ($requiredParams as $param) {

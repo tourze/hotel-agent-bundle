@@ -10,7 +10,7 @@ use Tourze\HotelAgentBundle\Service\AgentCodeGenerator;
 
 /**
  * 代理编号自动生成订阅器
- * 
+ *
  * 在保存代理实体时，如果没有编号则自动生成
  */
 #[AsEntityListener(event: Events::prePersist, method: 'prePersist', entity: Agent::class)]

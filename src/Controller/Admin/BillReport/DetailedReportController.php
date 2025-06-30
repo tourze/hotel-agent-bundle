@@ -17,7 +17,7 @@ class DetailedReportController extends AbstractController
         private readonly AgentBillService $agentBillService
     ) {}
 
-    #[Route('/admin/bill-report/detailed-report', name: 'admin_bill_report_detailed_report', methods: ['POST'])]
+    #[Route(path: '/admin/bill-report/detailed-report', name: 'admin_bill_report_detailed_report', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
         try {

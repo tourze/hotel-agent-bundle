@@ -12,6 +12,7 @@ use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Entity\OrderItem;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
+use Tourze\HotelAgentBundle\Exception\OrderImportException;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelProfileBundle\Repository\HotelRepository;
 use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
@@ -37,7 +38,7 @@ class OrderImportService
     {
         // 验证文件类型
         if (!in_array($file->getClientOriginalExtension(), ['xlsx', 'xls', 'csv'], true)) {
-            throw new \InvalidArgumentException('只支持 Excel 或 CSV 格式文件');
+            throw new OrderImportException('只支持 Excel 或 CSV 格式文件');
         }
 
         // 移动文件到临时目录
@@ -156,7 +157,7 @@ class OrderImportService
             ->findOneBy(['code' => $rowData['agent_code']]);
 
         if (null === $agent) {
-            throw new \InvalidArgumentException("代理编号 '{$rowData['agent_code']}' 不存在");
+            throw new OrderImportException("代理编号 '{$rowData['agent_code']}' 不存在");
         }
 
         // 查找酒店
@@ -164,7 +165,7 @@ class OrderImportService
             ->findOneBy(['name' => $rowData['hotel_name']]);
 
         if (null === $hotel) {
-            throw new \InvalidArgumentException("酒店 '{$rowData['hotel_name']}' 不存在");
+            throw new OrderImportException("酒店 '{$rowData['hotel_name']}' 不存在");
         }
 
         // 查找房型
@@ -172,7 +173,7 @@ class OrderImportService
             ->findOneBy(['hotel' => $hotel, 'name' => $rowData['room_type_name']]);
 
         if (null === $roomType) {
-            throw new \InvalidArgumentException("房型 '{$rowData['room_type_name']}' 在酒店 '{$rowData['hotel_name']}' 中不存在");
+            throw new OrderImportException("房型 '{$rowData['room_type_name']}' 在酒店 '{$rowData['hotel_name']}' 中不存在");
         }
 
         // 处理日期
@@ -180,7 +181,7 @@ class OrderImportService
         $checkOutDate = $this->parseDate($rowData['check_out_date'], '退房日期');
 
         if ($checkInDate >= $checkOutDate) {
-            throw new \InvalidArgumentException('入住日期必须早于退房日期');
+            throw new OrderImportException('入住日期必须早于退房日期');
         }
 
         // 创建订单
@@ -189,7 +190,7 @@ class OrderImportService
         $order->setAgent($agent);
         $order->setStatus(OrderStatusEnum::PENDING);
         $order->setSource(OrderSourceEnum::EXCEL_IMPORT);
-        $order->setRemark($rowData['remark'] ?: null);
+        $order->setRemark($rowData['remark'] ?? null);
         $order->setCreatedBy($operatorId);
 
         // 创建订单项
@@ -231,16 +232,16 @@ class OrderImportService
 
         foreach ($requiredFields as $field => $label) {
             if (empty($rowData[$field])) {
-                throw new \InvalidArgumentException("{$label}不能为空");
+                throw new OrderImportException("{$label}不能为空");
             }
         }
 
         if ($rowData['room_count'] <= 0) {
-            throw new \InvalidArgumentException('房间数量必须大于0');
+            throw new OrderImportException('房间数量必须大于0');
         }
 
         if ($rowData['unit_price'] <= 0) {
-            throw new \InvalidArgumentException('单价必须大于0');
+            throw new OrderImportException('单价必须大于0');
         }
     }
 
@@ -267,11 +268,11 @@ class OrderImportService
             try {
                 return new \DateTimeImmutable($value);
             } catch (\Throwable $e) {
-                throw new \InvalidArgumentException("{$fieldName}格式不正确: {$value}");
+                throw new OrderImportException("{$fieldName}格式不正确: {$value}");
             }
         }
 
-        throw new \InvalidArgumentException("{$fieldName}格式不正确");
+        throw new OrderImportException("{$fieldName}格式不正确");
     }
 
     /**

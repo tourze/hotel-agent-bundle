@@ -6,6 +6,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Tourze\HotelAgentBundle\Exception\ExportException;
 use Tourze\HotelAgentBundle\Service\AgentBillService;
 
 /**
@@ -17,7 +18,7 @@ class ExportReportController extends AbstractController
         private readonly AgentBillService $agentBillService
     ) {}
 
-    #[Route('/admin/bill-report/export', name: 'admin_bill_report_export', methods: ['POST'])]
+    #[Route(path: '/admin/bill-report/export', name: 'admin_bill_report_export', methods: ['POST'])]
     public function __invoke(Request $request): Response
     {
         try {
@@ -34,7 +35,7 @@ class ExportReportController extends AbstractController
                 return $this->exportToExcel($report, $startDate, $endDate);
             }
 
-            throw new \InvalidArgumentException('不支持的导出格式');
+            throw new ExportException('不支持的导出格式');
         } catch (\Throwable $e) {
             return $this->json([
                 'success' => false,

@@ -10,7 +10,7 @@ use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
 
 /**
  * 代理测试数据夹具
- * 
+ *
  * 创建不同等级和状态的代理账户，用于演示和测试代理管理功能
  */
 class AgentFixtures extends Fixture

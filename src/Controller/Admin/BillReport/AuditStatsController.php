@@ -17,7 +17,7 @@ class AuditStatsController extends AbstractController
         private readonly BillAuditService $billAuditService
     ) {}
 
-    #[Route('/admin/bill-report/audit-stats', name: 'admin_bill_report_audit_stats', methods: ['POST'])]
+    #[Route(path: '/admin/bill-report/audit-stats', name: 'admin_bill_report_audit_stats', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {
         try {

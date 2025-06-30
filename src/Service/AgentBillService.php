@@ -9,6 +9,7 @@ use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
+use Tourze\HotelAgentBundle\Exception\AgentBillException;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
 use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
@@ -211,7 +212,7 @@ class AgentBillService
     public function recalculateBill(AgentBill $bill, ?string $remarks = null): AgentBill
     {
         if ($bill->getStatus() === BillStatusEnum::PAID) {
-            throw new \RuntimeException('已支付的账单不能重新计算');
+            throw new AgentBillException('已支付的账单不能重新计算');
         }
 
         // 保存旧数据用于审核日志

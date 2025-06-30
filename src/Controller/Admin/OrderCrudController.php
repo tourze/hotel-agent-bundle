@@ -292,7 +292,7 @@ class OrderCrudController extends AbstractCrudController
     /**
      * 确认订单
      */
-    #[AdminAction('{entityId}/confirm', routeName: 'confirm')]
+    #[AdminAction(routeName: 'confirm')]
     public function confirmOrder(AdminContext $context): Response
     {
         $order = $context->getEntity()->getInstance();
@@ -324,7 +324,7 @@ class OrderCrudController extends AbstractCrudController
     /**
      * 取消订单
      */
-    #[AdminAction('{entityId}/cancel', routeName: 'cancel', methods: ['POST', 'GET'])]
+    #[AdminAction(routeName: 'cancel')]
     public function cancelOrder(Request $request, AdminContext $context): Response
     {
         $order = $context->getEntity()->getInstance();
@@ -366,7 +366,7 @@ class OrderCrudController extends AbstractCrudController
     /**
      * 关闭订单
      */
-    #[AdminAction('{entityId}/close', routeName: 'close', methods: ['POST', 'GET'])]
+    #[AdminAction(routeName: 'close')]
     public function closeOrder(Request $request, AdminContext $context): Response
     {
         $order = $context->getEntity()->getInstance();
@@ -408,7 +408,7 @@ class OrderCrudController extends AbstractCrudController
     /**
      * Excel导入订单
      */
-    #[AdminAction('import', 'admin_order_import', methods: ['GET', 'POST'])]
+    #[AdminAction(routeName: 'admin_order_import')]
     public function importOrders(Request $request): Response
     {
         if ($request->isMethod('POST')) {
@@ -443,7 +443,7 @@ class OrderCrudController extends AbstractCrudController
     /**
      * 新建订单
      */
-    #[AdminAction('newOrder', 'admin_order_new', ['GET', 'POST'])]
+    #[AdminAction(routeName: 'admin_order_new')]
     public function newOrder(Request $request): Response
     {
         if ($request->isMethod('POST')) {

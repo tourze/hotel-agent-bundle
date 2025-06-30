@@ -12,7 +12,7 @@ use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
 
 /**
  * 代理账单测试数据夹具
- * 
+ *
  * 为代理创建不同状态的月度账单，演示账单生成、确认和支付流程
  */
 class AgentBillFixtures extends Fixture implements DependentFixtureInterface

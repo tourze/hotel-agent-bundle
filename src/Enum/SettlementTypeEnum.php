@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -22,10 +24,14 @@ enum SettlementTypeEnum: string implements Labelable, Itemable, Selectable
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::MONTHLY => '月结',
             self::HALF_MONTHLY => '半月结',
             self::WEEKLY => '周结',
         };
     }
+
+    /**
+     * 生成枚举下拉选项
+     */
 }

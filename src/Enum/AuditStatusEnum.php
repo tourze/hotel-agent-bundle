@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -24,7 +26,7 @@ enum AuditStatusEnum: string implements Labelable, Itemable, Selectable
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => '待审核',
             self::APPROVED => '通过',
             self::RISK_REVIEW => '风险审核',
@@ -35,6 +37,7 @@ enum AuditStatusEnum: string implements Labelable, Itemable, Selectable
 
     /**
      * 获取选择选项（用于EasyAdmin）
+     * @return array<string, string>
      */
     public static function getSelectOptions(): array
     {
@@ -42,6 +45,11 @@ enum AuditStatusEnum: string implements Labelable, Itemable, Selectable
         foreach (self::cases() as $case) {
             $options[$case->getLabel()] = $case->value;
         }
+
         return $options;
     }
+
+    /**
+     * 生成枚举下拉选项
+     */
 }

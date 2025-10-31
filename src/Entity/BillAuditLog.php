@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Stringable;
+use Symfony\Component\Validator\Constraints as Assert;
+use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
 use Tourze\DoctrineTimestampBundle\Traits\CreateTimeAware;
 use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
@@ -15,10 +18,7 @@ use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
  */
 #[ORM\Entity(repositoryClass: BillAuditLogRepository::class)]
 #[ORM\Table(name: 'bill_audit_log', options: ['comment' => '账单审核日志表'])]
-#[ORM\Index(name: 'bill_audit_log_idx_bill', columns: ['agent_bill_id'])]
-#[ORM\Index(name: 'bill_audit_log_idx_action', columns: ['action'])]
-#[ORM\Index(name: 'bill_audit_log_idx_create_time', columns: ['create_time'])]
-class BillAuditLog implements Stringable
+class BillAuditLog implements \Stringable
 {
     use CreateTimeAware;
     use CreatedByAware;
@@ -26,40 +26,52 @@ class BillAuditLog implements Stringable
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
-    private ?int $id = null;
+    private int $id = 0;
 
     #[ORM\ManyToOne(targetEntity: AgentBill::class)]
     #[ORM\JoinColumn(name: 'agent_bill_id', referencedColumnName: 'id', nullable: false)]
     private AgentBill $agentBill;
 
     #[ORM\Column(type: Types::STRING, length: 50, options: ['comment' => '操作类型'])]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 50)]
+    #[IndexColumn]
     private string $action = '';
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: BillStatusEnum::class, nullable: true, options: ['comment' => '变更前状态'])]
+    #[Assert\Choice(callback: [BillStatusEnum::class, 'cases'])]
     private ?BillStatusEnum $fromStatus = null;
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: BillStatusEnum::class, nullable: true, options: ['comment' => '变更后状态'])]
+    #[Assert\Choice(callback: [BillStatusEnum::class, 'cases'])]
     private ?BillStatusEnum $toStatus = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '审核备注'])]
+    #[Assert\Length(max: 65535)]
     private ?string $remarks = null;
 
+    /**
+     * @var array<string, mixed>|null
+     */
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['comment' => '变更数据详情'])]
+    #[Assert\Type(type: 'array')]
     private ?array $changeDetails = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, nullable: true, options: ['comment' => '操作人姓名'])]
+    #[Assert\Length(max: 50)]
     private ?string $operatorName = null;
 
     #[ORM\Column(type: Types::STRING, length: 20, nullable: true, options: ['comment' => 'IP地址'])]
+    #[Assert\Ip]
+    #[Assert\Length(max: 20)]
     private ?string $ipAddress = null;
-
 
     public function __toString(): string
     {
         return sprintf('审核日志 %s (%s)', $this->action, $this->createTime?->format('Y-m-d H:i:s'));
     }
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
     }
@@ -69,10 +81,9 @@ class BillAuditLog implements Stringable
         return $this->agentBill;
     }
 
-    public function setAgentBill(AgentBill $agentBill): self
+    public function setAgentBill(AgentBill $agentBill): void
     {
         $this->agentBill = $agentBill;
-        return $this;
     }
 
     public function getAction(): string
@@ -80,10 +91,9 @@ class BillAuditLog implements Stringable
         return $this->action;
     }
 
-    public function setAction(string $action): self
+    public function setAction(string $action): void
     {
         $this->action = $action;
-        return $this;
     }
 
     public function getFromStatus(): ?BillStatusEnum
@@ -91,10 +101,9 @@ class BillAuditLog implements Stringable
         return $this->fromStatus;
     }
 
-    public function setFromStatus(?BillStatusEnum $fromStatus): self
+    public function setFromStatus(?BillStatusEnum $fromStatus): void
     {
         $this->fromStatus = $fromStatus;
-        return $this;
     }
 
     public function getToStatus(): ?BillStatusEnum
@@ -102,10 +111,9 @@ class BillAuditLog implements Stringable
         return $this->toStatus;
     }
 
-    public function setToStatus(?BillStatusEnum $toStatus): self
+    public function setToStatus(?BillStatusEnum $toStatus): void
     {
         $this->toStatus = $toStatus;
-        return $this;
     }
 
     public function getRemarks(): ?string
@@ -113,21 +121,25 @@ class BillAuditLog implements Stringable
         return $this->remarks;
     }
 
-    public function setRemarks(?string $remarks): self
+    public function setRemarks(?string $remarks): void
     {
         $this->remarks = $remarks;
-        return $this;
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     public function getChangeDetails(): ?array
     {
         return $this->changeDetails;
     }
 
-    public function setChangeDetails(?array $changeDetails): self
+    /**
+     * @param array<string, mixed>|null $changeDetails
+     */
+    public function setChangeDetails(?array $changeDetails): void
     {
         $this->changeDetails = $changeDetails;
-        return $this;
     }
 
     public function getOperatorName(): ?string
@@ -135,10 +147,9 @@ class BillAuditLog implements Stringable
         return $this->operatorName;
     }
 
-    public function setOperatorName(?string $operatorName): self
+    public function setOperatorName(?string $operatorName): void
     {
         $this->operatorName = $operatorName;
-        return $this;
     }
 
     public function getIpAddress(): ?string
@@ -146,10 +157,9 @@ class BillAuditLog implements Stringable
         return $this->ipAddress;
     }
 
-    public function setIpAddress(?string $ipAddress): self
+    public function setIpAddress(?string $ipAddress): void
     {
         $this->ipAddress = $ipAddress;
-        return $this;
     }
 
     /**
@@ -161,16 +171,16 @@ class BillAuditLog implements Stringable
         BillStatusEnum $toStatus,
         ?string $remarks = null,
         ?string $operatorName = null,
-        ?string $ipAddress = null
+        ?string $ipAddress = null,
     ): self {
         $log = new self();
-        $log->setAgentBill($agentBill)
-            ->setAction('状态变更')
-            ->setFromStatus($fromStatus)
-            ->setToStatus($toStatus)
-            ->setRemarks($remarks)
-            ->setOperatorName($operatorName)
-            ->setIpAddress($ipAddress);
+        $log->setAgentBill($agentBill);
+        $log->setAction('状态变更');
+        $log->setFromStatus($fromStatus);
+        $log->setToStatus($toStatus);
+        $log->setRemarks($remarks);
+        $log->setOperatorName($operatorName);
+        $log->setIpAddress($ipAddress);
 
         return $log;
     }
@@ -178,24 +188,28 @@ class BillAuditLog implements Stringable
     /**
      * 创建重新计算日志
      */
+    /**
+     * @param array<string, mixed> $oldData
+     * @param array<string, mixed> $newData
+     */
     public static function createRecalculateLog(
         AgentBill $agentBill,
         array $oldData,
         array $newData,
         ?string $remarks = null,
         ?string $operatorName = null,
-        ?string $ipAddress = null
+        ?string $ipAddress = null,
     ): self {
         $log = new self();
-        $log->setAgentBill($agentBill)
-            ->setAction('重新计算')
-            ->setChangeDetails([
-                'old' => $oldData,
-                'new' => $newData
-            ])
-            ->setRemarks($remarks)
-            ->setOperatorName($operatorName)
-            ->setIpAddress($ipAddress);
+        $log->setAgentBill($agentBill);
+        $log->setAction('重新计算');
+        $log->setChangeDetails([
+            'old' => $oldData,
+            'new' => $newData,
+        ]);
+        $log->setRemarks($remarks);
+        $log->setOperatorName($operatorName);
+        $log->setIpAddress($ipAddress);
 
         return $log;
     }
@@ -208,15 +222,15 @@ class BillAuditLog implements Stringable
         string $action,
         ?string $remarks = null,
         ?string $operatorName = null,
-        ?string $ipAddress = null
+        ?string $ipAddress = null,
     ): self {
         $log = new self();
-        $log->setAgentBill($agentBill)
-            ->setAction($action)
-            ->setRemarks($remarks)
-            ->setOperatorName($operatorName)
-            ->setIpAddress($ipAddress);
+        $log->setAgentBill($agentBill);
+        $log->setAction($action);
+        $log->setRemarks($remarks);
+        $log->setOperatorName($operatorName);
+        $log->setIpAddress($ipAddress);
 
         return $log;
     }
-} 
+}

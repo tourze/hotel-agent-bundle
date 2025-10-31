@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Entity;
 
 use Brick\Math\BigDecimal;
@@ -7,9 +9,10 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
+use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
+use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
@@ -17,63 +20,86 @@ use Tourze\HotelAgentBundle\Repository\OrderRepository;
 
 #[ORM\Entity(repositoryClass: OrderRepository::class)]
 #[ORM\Table(name: 'hotel_booking_order', options: ['comment' => '订单表'])]
-#[ORM\Index(name: 'order_idx_order_no', columns: ['order_no'])]
-#[ORM\Index(name: 'order_idx_agent_id', columns: ['agent_id'])]
-#[ORM\Index(name: 'order_idx_status', columns: ['status'])]
-#[ORM\Index(name: 'order_idx_audit_status', columns: ['audit_status'])]
-class Order implements Stringable
+class Order implements \Stringable
 {
     use TimestampableAware;
+    use CreatedByAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
-    private ?int $id = null;
+    private int $id = 0;
 
     #[ORM\Column(type: Types::STRING, length: 50, unique: true, options: ['comment' => '订单编号'])]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 50)]
+    #[IndexColumn]
     private string $orderNo = '';
 
     #[ORM\ManyToOne(inversedBy: 'orders')]
     #[ORM\JoinColumn(name: 'agent_id', nullable: false)]
+    #[Assert\NotNull]
     private ?Agent $agent = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['comment' => '订单总金额', 'default' => 0])]
     #[Assert\PositiveOrZero]
+    #[Assert\Length(max: 13)]
     private string $totalAmount = '0.00';
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: OrderStatusEnum::class, options: ['comment' => '订单状态'])]
+    #[Assert\Choice(callback: [OrderStatusEnum::class, 'cases'])]
+    #[IndexColumn]
     private OrderStatusEnum $status = OrderStatusEnum::PENDING;
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: OrderSourceEnum::class, options: ['comment' => '订单来源'])]
+    #[Assert\Choice(callback: [OrderSourceEnum::class, 'cases'])]
     private OrderSourceEnum $source = OrderSourceEnum::MANUAL_INPUT;
 
     #[ORM\Column(type: Types::STRING, length: 255, nullable: true, options: ['comment' => '导入文件URL(仅Excel导入)'])]
+    #[Assert\Url]
+    #[Assert\Length(max: 255)]
     private ?string $importFile = null;
 
     #[ORM\Column(type: Types::BOOLEAN, options: ['comment' => '是否为复合订单', 'default' => false])]
+    #[Assert\Type(type: 'bool')]
     private bool $isComplex = false;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '订单备注'])]
+    #[Assert\Length(max: 65535)]
     private ?string $remark = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '取消原因'])]
+    #[Assert\Length(max: 65535)]
     private ?string $cancelReason = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '取消时间'])]
+    #[Assert\Type(type: \DateTimeImmutable::class)]
     private ?\DateTimeImmutable $cancelTime = null;
 
     #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '取消人ID'])]
+    #[Assert\Positive]
     private ?int $cancelledBy = null;
 
+    /**
+     * @var array<array<string, mixed>>|null
+     */
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['comment' => '变更历史记录'])]
+    #[Assert\Type(type: 'array')]
     private ?array $changeHistory = [];
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: AuditStatusEnum::class, options: ['comment' => '风控审核状态', 'default' => 'approved'])]
+    #[Assert\NotNull]
+    #[Assert\Choice(callback: [AuditStatusEnum::class, 'cases'])]
+    #[IndexColumn]
     private AuditStatusEnum $auditStatus = AuditStatusEnum::APPROVED;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '审核备注'])]
-    private ?string $auditRemark = null;#[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '创建人ID'])]
-    private ?int $createdBy = null;
+    #[Assert\Length(max: 65535)]
+    private ?string $auditRemark = null;
 
+    /**
+     * @var Collection<int, OrderItem>
+     */
     #[ORM\OneToMany(targetEntity: OrderItem::class, mappedBy: 'order', cascade: ['persist', 'remove'], orphanRemoval: true)]
     private Collection $orderItems;
 
@@ -88,7 +114,7 @@ class Order implements Stringable
         return $this->orderNo;
     }
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
     }
@@ -98,10 +124,9 @@ class Order implements Stringable
         return $this->orderNo;
     }
 
-    public function setOrderNo(string $orderNo): self
+    public function setOrderNo(string $orderNo): void
     {
         $this->orderNo = $orderNo;
-        return $this;
     }
 
     public function getAgent(): ?Agent
@@ -109,10 +134,9 @@ class Order implements Stringable
         return $this->agent;
     }
 
-    public function setAgent(?Agent $agent): self
+    public function setAgent(?Agent $agent): void
     {
         $this->agent = $agent;
-        return $this;
     }
 
     public function getTotalAmount(): string
@@ -120,10 +144,9 @@ class Order implements Stringable
         return $this->totalAmount;
     }
 
-    public function setTotalAmount(string $totalAmount): self
+    public function setTotalAmount(string $totalAmount): void
     {
         $this->totalAmount = $totalAmount;
-        return $this;
     }
 
     public function getStatus(): OrderStatusEnum
@@ -131,10 +154,9 @@ class Order implements Stringable
         return $this->status;
     }
 
-    public function setStatus(OrderStatusEnum $status): self
+    public function setStatus(OrderStatusEnum $status): void
     {
         $this->status = $status;
-        return $this;
     }
 
     public function getSource(): OrderSourceEnum
@@ -142,10 +164,9 @@ class Order implements Stringable
         return $this->source;
     }
 
-    public function setSource(OrderSourceEnum $source): self
+    public function setSource(OrderSourceEnum $source): void
     {
         $this->source = $source;
-        return $this;
     }
 
     public function getImportFile(): ?string
@@ -153,10 +174,9 @@ class Order implements Stringable
         return $this->importFile;
     }
 
-    public function setImportFile(?string $importFile): self
+    public function setImportFile(?string $importFile): void
     {
         $this->importFile = $importFile;
-        return $this;
     }
 
     public function isComplex(): bool
@@ -164,10 +184,9 @@ class Order implements Stringable
         return $this->isComplex;
     }
 
-    public function setIsComplex(bool $isComplex): self
+    public function setIsComplex(bool $isComplex): void
     {
         $this->isComplex = $isComplex;
-        return $this;
     }
 
     public function getRemark(): ?string
@@ -175,10 +194,9 @@ class Order implements Stringable
         return $this->remark;
     }
 
-    public function setRemark(?string $remark): self
+    public function setRemark(?string $remark): void
     {
         $this->remark = $remark;
-        return $this;
     }
 
     public function getCancelReason(): ?string
@@ -186,10 +204,9 @@ class Order implements Stringable
         return $this->cancelReason;
     }
 
-    public function setCancelReason(?string $cancelReason): self
+    public function setCancelReason(?string $cancelReason): void
     {
         $this->cancelReason = $cancelReason;
-        return $this;
     }
 
     public function getCancelTime(): ?\DateTimeImmutable
@@ -197,10 +214,9 @@ class Order implements Stringable
         return $this->cancelTime;
     }
 
-    public function setCancelTime(?\DateTimeImmutable $cancelTime): self
+    public function setCancelTime(?\DateTimeImmutable $cancelTime): void
     {
         $this->cancelTime = $cancelTime;
-        return $this;
     }
 
     public function getCancelledBy(): ?int
@@ -208,23 +224,30 @@ class Order implements Stringable
         return $this->cancelledBy;
     }
 
-    public function setCancelledBy(?int $cancelledBy): self
+    public function setCancelledBy(?int $cancelledBy): void
     {
         $this->cancelledBy = $cancelledBy;
-        return $this;
     }
 
+    /**
+     * @return array<array<string, mixed>>|null
+     */
     public function getChangeHistory(): ?array
     {
         return $this->changeHistory;
     }
 
-    public function setChangeHistory(?array $changeHistory): self
+    /**
+     * @param array<array<string, mixed>>|null $changeHistory
+     */
+    public function setChangeHistory(?array $changeHistory): void
     {
         $this->changeHistory = $changeHistory;
-        return $this;
     }
 
+    /**
+     * @param array<string, mixed> $changes
+     */
     public function addChangeRecord(string $changeType, array $changes, ?int $operatorId = null): self
     {
         $record = [
@@ -235,6 +258,7 @@ class Order implements Stringable
         ];
 
         $this->changeHistory[] = $record;
+
         return $this;
     }
 
@@ -243,10 +267,9 @@ class Order implements Stringable
         return $this->auditStatus;
     }
 
-    public function setAuditStatus(AuditStatusEnum $auditStatus): self
+    public function setAuditStatus(AuditStatusEnum $auditStatus): void
     {
         $this->auditStatus = $auditStatus;
-        return $this;
     }
 
     public function getAuditRemark(): ?string
@@ -254,19 +277,9 @@ class Order implements Stringable
         return $this->auditRemark;
     }
 
-    public function setAuditRemark(?string $auditRemark): self
+    public function setAuditRemark(?string $auditRemark): void
     {
         $this->auditRemark = $auditRemark;
-        return $this;
-    }public function getCreatedBy(): ?int
-    {
-        return $this->createdBy;
-    }
-
-    public function setCreatedBy(?int $createdBy): self
-    {
-        $this->createdBy = $createdBy;
-        return $this;
     }
 
     /**
@@ -321,7 +334,7 @@ class Order implements Stringable
             $totalAmount = BigDecimal::of($totalAmount)->plus($orderItem->getAmount())->toScale(2);
         }
 
-        $this->totalAmount = $totalAmount;
+        $this->totalAmount = (string) $totalAmount;
     }
 
     /**
@@ -331,6 +344,7 @@ class Order implements Stringable
     {
         if ($this->orderItems->count() <= 1) {
             $this->isComplex = false;
+
             return;
         }
 
@@ -341,17 +355,17 @@ class Order implements Stringable
             $hotelId = $orderItem->getHotel()?->getId();
             $roomTypeId = $orderItem->getRoomType()?->getId();
 
-            if ($hotelId && !in_array($hotelId, $hotelIds)) {
+            if (null !== $hotelId && !in_array($hotelId, $hotelIds, true)) {
                 $hotelIds[] = $hotelId;
             }
 
-            if ($roomTypeId && !in_array($roomTypeId, $roomTypeIds)) {
+            if (null !== $roomTypeId && !in_array($roomTypeId, $roomTypeIds, true)) {
                 $roomTypeIds[] = $roomTypeId;
             }
         }
 
         // 只有当有订单项时才可能是复合订单
-        $this->isComplex = !empty($hotelIds) && (count($hotelIds) > 1 || count($roomTypeIds) > 1);
+        $this->isComplex = [] !== $hotelIds && (count($hotelIds) > 1 || count($roomTypeIds) > 1);
     }
 
     /**
@@ -367,7 +381,7 @@ class Order implements Stringable
         $this->addChangeRecord('cancel', [
             'reason' => $reason,
             'from' => 'active',
-            'to' => 'canceled'
+            'to' => 'canceled',
         ], $cancelledBy);
 
         return $this;
@@ -382,7 +396,7 @@ class Order implements Stringable
 
         $this->addChangeRecord('confirm', [
             'from' => $this->status->value,
-            'to' => OrderStatusEnum::CONFIRMED->value
+            'to' => OrderStatusEnum::CONFIRMED->value,
         ], $operatorId);
 
         return $this;
@@ -398,8 +412,9 @@ class Order implements Stringable
         $this->addChangeRecord('close', [
             'reason' => $reason,
             'from' => 'active',
-            'to' => 'closed'
+            'to' => 'closed',
         ], $operatorId);
 
         return $this;
-    }}
+    }
+}

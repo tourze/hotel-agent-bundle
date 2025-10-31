@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Controller\Admin\Order;
 
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -12,11 +14,12 @@ use Tourze\HotelContractBundle\Service\InventoryQueryService;
 /**
  * Ajax接口：获取库存信息
  */
-class AjaxInventoryController extends AbstractController
+final class AjaxInventoryController extends AbstractController
 {
     public function __construct(
-        private readonly InventoryQueryService $inventoryQueryService
-    ) {}
+        private readonly InventoryQueryService $inventoryQueryService,
+    ) {
+    }
 
     #[Route(path: '/admin/order/ajax/inventory', name: 'admin_order_ajax_inventory', methods: ['POST'])]
     public function __invoke(Request $request): Response
@@ -25,14 +28,17 @@ class AjaxInventoryController extends AbstractController
             $roomTypeId = $request->request->get('room_type_id');
             $checkInDate = $request->request->get('check_in_date');
             $checkOutDate = $request->request->get('check_out_date');
-            $roomCount = (int)$request->request->get('room_count', 1);
+            $roomCount = (int) $request->request->get('room_count', 1);
 
-            if (null === $roomTypeId || null === $checkInDate || null === $checkOutDate) {
+            if (null === $roomTypeId || null === $checkInDate || '' === $checkInDate || null === $checkOutDate || '' === $checkOutDate) {
                 throw new OrderProcessingException('参数不完整');
             }
 
+            assert(is_string($checkInDate));
+            assert(is_string($checkOutDate));
+
             $data = $this->inventoryQueryService->getInventoryData(
-                (int)$roomTypeId,
+                (int) $roomTypeId,
                 $checkInDate,
                 $checkOutDate,
                 $roomCount
@@ -40,12 +46,12 @@ class AjaxInventoryController extends AbstractController
 
             return $this->json([
                 'success' => true,
-                'data' => $data
+                'data' => $data,
             ]);
         } catch (\Throwable $e) {
             return $this->json([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ], 400);
         }
     }

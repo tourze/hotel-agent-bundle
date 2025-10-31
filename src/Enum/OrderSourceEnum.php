@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -21,9 +23,13 @@ enum OrderSourceEnum: string implements Labelable, Itemable, Selectable
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::EXCEL_IMPORT => 'Excel导入',
             self::MANUAL_INPUT => '后台录入',
         };
     }
-} 
+
+    /**
+     * 生成枚举下拉选项
+     */
+}

@@ -7,4 +7,6 @@ namespace Tourze\HotelAgentBundle\Exception;
 /**
  * 酒店代理包基础异常类
  */
-abstract class HotelAgentException extends \RuntimeException {}
+abstract class HotelAgentException extends \RuntimeException
+{
+}

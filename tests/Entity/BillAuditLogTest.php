@@ -1,157 +1,146 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Entity;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\BillAuditLog;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
+use Tourze\PHPUnitDoctrineEntity\AbstractEntityTestCase;
 
-class BillAuditLogTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(BillAuditLog::class)]
+final class BillAuditLogTest extends AbstractEntityTestCase
 {
-    private BillAuditLog $auditLog;
-    private AgentBill $agentBill;
-
-    protected function setUp(): void
-    {
-        $this->auditLog = new BillAuditLog();
-        $this->agentBill = $this->createAgentBill();
-    }
-
-    public function test_toString_returns_action_and_time(): void
+    public function testToStringReturnsActionAndTime(): void
     {
         $time = new \DateTimeImmutable('2024-01-01 10:00:00');
-        $this->auditLog->setAction('测试操作')
-            ->setCreateTime($time);
+        $auditLog = new BillAuditLog();
+        $auditLog->setAction('测试操作');
+        $auditLog->setCreateTime($time);
 
-        $this->assertSame('审核日志 测试操作 (2024-01-01 10:00:00)', $this->auditLog->__toString());
+        $this->assertSame('审核日志 测试操作 (2024-01-01 10:00:00)', $auditLog->__toString());
     }
 
-    public function test_toString_with_null_time(): void
+    public function testToStringWithNullTime(): void
     {
-        $this->auditLog->setAction('测试操作');
+        $auditLog = new BillAuditLog();
+        $auditLog->setAction('测试操作');
 
-        $this->assertSame('审核日志 测试操作 ()', $this->auditLog->__toString());
+        $this->assertSame('审核日志 测试操作 ()', $auditLog->__toString());
     }
 
-    public function test_setAgentBill_with_valid_bill(): void
+    public function testSetAgentBillWithValidBill(): void
     {
-        $result = $this->auditLog->setAgentBill($this->agentBill);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame($this->agentBill, $this->auditLog->getAgentBill());
+        $auditLog = new BillAuditLog();
+        $agentBill = $this->createAgentBill();
+        $auditLog->setAgentBill($agentBill);
+        $this->assertSame($agentBill, $auditLog->getAgentBill());
     }
 
-    public function test_setAction_with_valid_action(): void
+    public function testSetActionWithValidAction(): void
     {
-        $result = $this->auditLog->setAction('状态变更');
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame('状态变更', $this->auditLog->getAction());
+        $auditLog = new BillAuditLog();
+        $auditLog->setAction('状态变更');
+        $this->assertSame('状态变更', $auditLog->getAction());
     }
 
-    public function test_setFromStatus_with_valid_status(): void
+    public function testSetFromStatusWithValidStatus(): void
     {
-        $result = $this->auditLog->setFromStatus(BillStatusEnum::PENDING);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame(BillStatusEnum::PENDING, $this->auditLog->getFromStatus());
+        $auditLog = new BillAuditLog();
+        $auditLog->setFromStatus(BillStatusEnum::PENDING);
+        $this->assertSame(BillStatusEnum::PENDING, $auditLog->getFromStatus());
     }
 
-    public function test_setFromStatus_with_null(): void
+    public function testSetFromStatusWithNull(): void
     {
-        $result = $this->auditLog->setFromStatus(null);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertNull($this->auditLog->getFromStatus());
+        $auditLog = new BillAuditLog();
+        $auditLog->setFromStatus(null);
+        $this->assertNull($auditLog->getFromStatus());
     }
 
-    public function test_setToStatus_with_valid_status(): void
+    public function testSetToStatusWithValidStatus(): void
     {
-        $result = $this->auditLog->setToStatus(BillStatusEnum::CONFIRMED);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame(BillStatusEnum::CONFIRMED, $this->auditLog->getToStatus());
+        $auditLog = new BillAuditLog();
+        $auditLog->setToStatus(BillStatusEnum::CONFIRMED);
+        $this->assertSame(BillStatusEnum::CONFIRMED, $auditLog->getToStatus());
     }
 
-    public function test_setToStatus_with_null(): void
+    public function testSetToStatusWithNull(): void
     {
-        $result = $this->auditLog->setToStatus(null);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertNull($this->auditLog->getToStatus());
+        $auditLog = new BillAuditLog();
+        $auditLog->setToStatus(null);
+        $this->assertNull($auditLog->getToStatus());
     }
 
-    public function test_setRemarks_with_valid_remarks(): void
+    public function testSetRemarksWithValidRemarks(): void
     {
-        $result = $this->auditLog->setRemarks('测试备注');
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame('测试备注', $this->auditLog->getRemarks());
+        $auditLog = new BillAuditLog();
+        $auditLog->setRemarks('测试备注');
+        $this->assertSame('测试备注', $auditLog->getRemarks());
     }
 
-    public function test_setRemarks_with_null(): void
+    public function testSetRemarksWithNull(): void
     {
-        $result = $this->auditLog->setRemarks(null);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertNull($this->auditLog->getRemarks());
+        $auditLog = new BillAuditLog();
+        $auditLog->setRemarks(null);
+        $this->assertNull($auditLog->getRemarks());
     }
 
-    public function test_setChangeDetails_with_valid_array(): void
+    public function testSetChangeDetailsWithValidArray(): void
     {
         $details = ['old' => 'value1', 'new' => 'value2'];
-        $result = $this->auditLog->setChangeDetails($details);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame($details, $this->auditLog->getChangeDetails());
+        $auditLog = new BillAuditLog();
+        $auditLog->setChangeDetails($details);
+        $this->assertSame($details, $auditLog->getChangeDetails());
     }
 
-    public function test_setChangeDetails_with_null(): void
+    public function testSetChangeDetailsWithNull(): void
     {
-        $result = $this->auditLog->setChangeDetails(null);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertNull($this->auditLog->getChangeDetails());
+        $auditLog = new BillAuditLog();
+        $auditLog->setChangeDetails(null);
+        $this->assertNull($auditLog->getChangeDetails());
     }
 
-    public function test_setOperatorName_with_valid_name(): void
+    public function testSetOperatorNameWithValidName(): void
     {
-        $result = $this->auditLog->setOperatorName('操作员');
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame('操作员', $this->auditLog->getOperatorName());
+        $auditLog = new BillAuditLog();
+        $auditLog->setOperatorName('操作员');
+        $this->assertSame('操作员', $auditLog->getOperatorName());
     }
 
-    public function test_setOperatorName_with_null(): void
+    public function testSetOperatorNameWithNull(): void
     {
-        $result = $this->auditLog->setOperatorName(null);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertNull($this->auditLog->getOperatorName());
+        $auditLog = new BillAuditLog();
+        $auditLog->setOperatorName(null);
+        $this->assertNull($auditLog->getOperatorName());
     }
 
-    public function test_setIpAddress_with_valid_ip(): void
+    public function testSetIpAddressWithValidIp(): void
     {
-        $result = $this->auditLog->setIpAddress('192.168.1.1');
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertSame('192.168.1.1', $this->auditLog->getIpAddress());
+        $auditLog = new BillAuditLog();
+        $auditLog->setIpAddress('192.168.1.1');
+        $this->assertSame('192.168.1.1', $auditLog->getIpAddress());
     }
 
-    public function test_setIpAddress_with_null(): void
+    public function testSetIpAddressWithNull(): void
     {
-        $result = $this->auditLog->setIpAddress(null);
-
-        $this->assertSame($this->auditLog, $result);
-        $this->assertNull($this->auditLog->getIpAddress());
+        $auditLog = new BillAuditLog();
+        $auditLog->setIpAddress(null);
+        $this->assertNull($auditLog->getIpAddress());
     }
 
-    public function test_createStatusChangeLog_creates_correct_log(): void
+    public function testCreateStatusChangeLogCreatesCorrectLog(): void
     {
+        $agentBill = $this->createAgentBill();
         $log = BillAuditLog::createStatusChangeLog(
-            $this->agentBill,
+            $agentBill,
             BillStatusEnum::PENDING,
             BillStatusEnum::CONFIRMED,
             '测试备注',
@@ -159,8 +148,7 @@ class BillAuditLogTest extends TestCase
             '192.168.1.1'
         );
 
-        $this->assertInstanceOf(BillAuditLog::class, $log);
-        $this->assertSame($this->agentBill, $log->getAgentBill());
+        $this->assertSame($agentBill, $log->getAgentBill());
         $this->assertSame('状态变更', $log->getAction());
         $this->assertSame(BillStatusEnum::PENDING, $log->getFromStatus());
         $this->assertSame(BillStatusEnum::CONFIRMED, $log->getToStatus());
@@ -169,10 +157,11 @@ class BillAuditLogTest extends TestCase
         $this->assertSame('192.168.1.1', $log->getIpAddress());
     }
 
-    public function test_createStatusChangeLog_with_null_from_status(): void
+    public function testCreateStatusChangeLogWithNullFromStatus(): void
     {
+        $agentBill = $this->createAgentBill();
         $log = BillAuditLog::createStatusChangeLog(
-            $this->agentBill,
+            $agentBill,
             null,
             BillStatusEnum::CONFIRMED
         );
@@ -181,27 +170,29 @@ class BillAuditLogTest extends TestCase
         $this->assertSame(BillStatusEnum::CONFIRMED, $log->getToStatus());
     }
 
-    public function test_createStatusChangeLog_with_minimal_parameters(): void
+    public function testCreateStatusChangeLogWithMinimalParameters(): void
     {
+        $agentBill = $this->createAgentBill();
         $log = BillAuditLog::createStatusChangeLog(
-            $this->agentBill,
+            $agentBill,
             BillStatusEnum::PENDING,
             BillStatusEnum::CONFIRMED
         );
 
-        $this->assertSame($this->agentBill, $log->getAgentBill());
+        $this->assertSame($agentBill, $log->getAgentBill());
         $this->assertNull($log->getRemarks());
         $this->assertNull($log->getOperatorName());
         $this->assertNull($log->getIpAddress());
     }
 
-    public function test_createRecalculateLog_creates_correct_log(): void
+    public function testCreateRecalculateLogCreatesCorrectLog(): void
     {
+        $agentBill = $this->createAgentBill();
         $oldData = ['amount' => '100.00'];
         $newData = ['amount' => '200.00'];
 
         $log = BillAuditLog::createRecalculateLog(
-            $this->agentBill,
+            $agentBill,
             $oldData,
             $newData,
             '重新计算备注',
@@ -209,8 +200,7 @@ class BillAuditLogTest extends TestCase
             '192.168.1.1'
         );
 
-        $this->assertInstanceOf(BillAuditLog::class, $log);
-        $this->assertSame($this->agentBill, $log->getAgentBill());
+        $this->assertSame($agentBill, $log->getAgentBill());
         $this->assertSame('重新计算', $log->getAction());
         $this->assertSame(['old' => $oldData, 'new' => $newData], $log->getChangeDetails());
         $this->assertSame('重新计算备注', $log->getRemarks());
@@ -218,10 +208,11 @@ class BillAuditLogTest extends TestCase
         $this->assertSame('192.168.1.1', $log->getIpAddress());
     }
 
-    public function test_createRecalculateLog_with_empty_data(): void
+    public function testCreateRecalculateLogWithEmptyData(): void
     {
+        $agentBill = $this->createAgentBill();
         $log = BillAuditLog::createRecalculateLog(
-            $this->agentBill,
+            $agentBill,
             [],
             []
         );
@@ -229,56 +220,64 @@ class BillAuditLogTest extends TestCase
         $this->assertSame(['old' => [], 'new' => []], $log->getChangeDetails());
     }
 
-    public function test_createAuditLog_creates_correct_log(): void
+    public function testCreateAuditLogCreatesCorrectLog(): void
     {
+        $agentBill = $this->createAgentBill();
         $log = BillAuditLog::createAuditLog(
-            $this->agentBill,
+            $agentBill,
             '审核通过',
             '审核备注',
             '审核员',
             '192.168.1.1'
         );
 
-        $this->assertInstanceOf(BillAuditLog::class, $log);
-        $this->assertSame($this->agentBill, $log->getAgentBill());
+        $this->assertSame($agentBill, $log->getAgentBill());
         $this->assertSame('审核通过', $log->getAction());
         $this->assertSame('审核备注', $log->getRemarks());
         $this->assertSame('审核员', $log->getOperatorName());
         $this->assertSame('192.168.1.1', $log->getIpAddress());
     }
 
-    public function test_createAuditLog_with_minimal_parameters(): void
+    public function testCreateAuditLogWithMinimalParameters(): void
     {
-        $log = BillAuditLog::createAuditLog($this->agentBill, '审核操作');
+        $agentBill = $this->createAgentBill();
+        $log = BillAuditLog::createAuditLog($agentBill, '审核操作');
 
-        $this->assertSame($this->agentBill, $log->getAgentBill());
+        $this->assertSame($agentBill, $log->getAgentBill());
         $this->assertSame('审核操作', $log->getAction());
         $this->assertNull($log->getRemarks());
         $this->assertNull($log->getOperatorName());
         $this->assertNull($log->getIpAddress());
     }
 
-    public function test_setCreateTime_sets_time(): void
+    public function testSetCreateTimeSetsTime(): void
     {
         $time = new \DateTimeImmutable();
+        $auditLog = new BillAuditLog();
+        $auditLog->setCreateTime($time);
 
-        $this->auditLog->setCreateTime($time);
-
-        $this->assertSame($time, $this->auditLog->getCreateTime());
+        $this->assertSame($time, $auditLog->getCreateTime());
     }
 
-    public function test_default_values(): void
+    public static function propertiesProvider(): iterable
     {
-        $this->assertNull($this->auditLog->getId());
-        $this->assertSame('', $this->auditLog->getAction());
-        $this->assertNull($this->auditLog->getFromStatus());
-        $this->assertNull($this->auditLog->getToStatus());
-        $this->assertNull($this->auditLog->getRemarks());
-        $this->assertNull($this->auditLog->getChangeDetails());
-        $this->assertNull($this->auditLog->getOperatorName());
-        $this->assertNull($this->auditLog->getIpAddress());
-        $this->assertNull($this->auditLog->getCreateTime());
-        $this->assertNull($this->auditLog->getCreatedBy());
+        $agent = new Agent();
+        $agent->setCode('TEST001');
+        $agent->setCompanyName('测试代理公司');
+        $agent->setCreatedBy('test-user');
+
+        $bill = new AgentBill();
+        $bill->setAgent($agent);
+        $bill->setBillMonth('2024-01');
+
+        yield 'status_change_log' => ['agentBill', $bill];
+        yield 'minimal_log' => ['action', '创建'];
+        yield 'recalculate_log' => ['remarks', '价格调整'];
+    }
+
+    protected function createEntity(): object
+    {
+        return new BillAuditLog();
     }
 
     private function createAgentBill(): AgentBill
@@ -292,4 +291,4 @@ class BillAuditLogTest extends TestCase
 
         return $bill;
     }
-} 
+}

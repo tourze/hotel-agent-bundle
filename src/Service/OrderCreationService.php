@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
 use Brick\Math\BigDecimal;
@@ -14,31 +16,33 @@ use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Exception\OrderProcessingException;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelContractBundle\Entity\DailyInventory;
-use Tourze\HotelContractBundle\Enum\DailyInventoryStatusEnum;
-use Tourze\HotelContractBundle\Repository\DailyInventoryRepository;
+use Tourze\HotelContractBundle\Service\RoomTypeInventoryService;
 use Tourze\HotelProfileBundle\Entity\RoomType;
-use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
+use Tourze\HotelProfileBundle\Service\RoomTypeService;
 
 /**
  * 订单创建服务
  */
-class OrderCreationService
+readonly class OrderCreationService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly AgentRepository $agentRepository,
-        private readonly RoomTypeRepository $roomTypeRepository,
-        private readonly DailyInventoryRepository $dailyInventoryRepository
-    ) {}
+        private EntityManagerInterface $entityManager,
+        private AgentRepository $agentRepository,
+        private RoomTypeService $roomTypeService,
+        private RoomTypeInventoryService $roomTypeInventoryService,
+    ) {
+    }
 
     /**
      * 验证订单创建数据
+     *
+     * @param array<string, mixed> $formData
      */
     public function validateOrderData(array $formData): void
     {
         $requiredFields = ['agent_id', 'room_type_id', 'check_in_date', 'check_out_date', 'room_count'];
         foreach ($requiredFields as $field) {
-            if (empty($formData[$field])) {
+            if (!isset($formData[$field]) || '' === $formData[$field]) {
                 throw new OrderProcessingException("字段 {$field} 不能为空");
             }
         }
@@ -46,53 +50,122 @@ class OrderCreationService
 
     /**
      * 解析用户选择的库存ID
+     *
+     * @param array<string, mixed> $formData
+     * @return array<string, int[]>
      */
     public function parseSelectedInventories(array $formData): array
     {
+        if (isset($formData['selected_inventories']) && is_array($formData['selected_inventories'])) {
+            return $this->parseNewFormatInventories($formData);
+        }
+
+        return $this->parseLegacyFormatInventories($formData);
+    }
+
+    /**
+     * 解析新格式的库存数据（推荐格式）
+     *
+     * @param array<string, mixed> $formData
+     * @return array<string, int[]>
+     */
+    private function parseNewFormatInventories(array $formData): array
+    {
+        $checkInDateStr = is_string($formData['check_in_date'] ?? null) ? $formData['check_in_date'] : throw new \InvalidArgumentException('Invalid check_in_date');
+        $checkOutDateStr = is_string($formData['check_out_date'] ?? null) ? $formData['check_out_date'] : throw new \InvalidArgumentException('Invalid check_out_date');
+        $roomCount = is_numeric($formData['room_count'] ?? null) ? (int) $formData['room_count'] : throw new \InvalidArgumentException('Invalid room_count');
+
+        $checkInDate = new \DateTimeImmutable($checkInDateStr);
+        $checkOutDate = new \DateTimeImmutable($checkOutDateStr);
+
+        $selectedInventories = [];
+        $inventoryIndex = 0;
+        $currentDate = $checkInDate;
+
+        $rawInventories = $formData['selected_inventories'] ?? [];
+        if (!is_array($rawInventories)) {
+            throw new \InvalidArgumentException('Invalid selected_inventories');
+        }
+        /** @var int[] $inventoryIds */
+        $inventoryIds = array_map(fn ($v) => is_numeric($v) ? (int) $v : 0, $rawInventories);
+
+        while ($currentDate < $checkOutDate) {
+            $dateStr = $currentDate->format('Y-m-d');
+            $selectedInventories[$dateStr] = $this->allocateInventoriesForDate(
+                $inventoryIds,
+                $inventoryIndex,
+                $roomCount
+            );
+            $inventoryIndex += $roomCount;
+            $currentDate = $currentDate->modify('+1 day');
+        }
+
+        return $selectedInventories;
+    }
+
+    /**
+     * 为指定日期分配库存
+     *
+     * 不考虑并发：此方法在事务内执行，由调用方确保事务隔离
+     *
+     * @param int[] $inventories
+     * @return int[]
+     */
+    private function allocateInventoriesForDate(array $inventories, int $startIndex, int $roomCount): array
+    {
+        $dayInventories = [];
+        for ($i = 0; $i < $roomCount; ++$i) {
+            $index = $startIndex + $i;
+            if (isset($inventories[$index])) {
+                $dayInventories[] = (int) $inventories[$index];
+            }
+        }
+
+        return $dayInventories;
+    }
+
+    /**
+     * 解析旧格式的库存数据（兼容性支持）
+     *
+     * @param array<string, mixed> $formData
+     * @return array<string, int[]>
+     */
+    private function parseLegacyFormatInventories(array $formData): array
+    {
         $selectedInventories = [];
 
-        // 方式1：检查 selected_inventories 数组格式（推荐）
-        if (isset($formData['selected_inventories']) && is_array($formData['selected_inventories'])) {
-            // 根据入住日期和退房日期确定每天需要的库存数量
-            $checkInDate = new \DateTimeImmutable($formData['check_in_date']);
-            $checkOutDate = new \DateTimeImmutable($formData['check_out_date']);
-            $roomCount = (int)$formData['room_count'];
-
-            $inventoryIndex = 0;
-            $currentDate = $checkInDate;
-
-            while ($currentDate < $checkOutDate) {
-                $dateStr = $currentDate->format('Y-m-d');
-                $selectedInventories[$dateStr] = [];
-
-                // 为这一天分配对应数量的库存
-                for ($i = 0; $i < $roomCount; $i++) {
-                    if (isset($formData['selected_inventories'][$inventoryIndex])) {
-                        $selectedInventories[$dateStr][] = (int)$formData['selected_inventories'][$inventoryIndex];
-                        $inventoryIndex++;
-                    }
-                }
-
-                $currentDate = $currentDate->modify('+1 day');
-            }
-        } else {
-            // 方式2：兼容旧的 inventory_日期 格式
-            foreach ($formData as $key => $value) {
-                if (strpos($key, 'inventory_') === 0) {
-                    // 提取日期：inventory_2025-06-04 -> 2025-06-04
-                    $datePart = substr($key, 10); // 去掉 'inventory_' 前缀
-                    $date = str_replace('_', '-', $datePart);
-
-                    if (is_array($value)) {
-                        $selectedInventories[$date] = array_map('intval', $value);
-                    } else {
-                        $selectedInventories[$date] = [(int)$value];
-                    }
-                }
+        foreach ($formData as $key => $value) {
+            if (0 === strpos($key, 'inventory_')) {
+                $date = $this->extractDateFromLegacyKey($key);
+                $selectedInventories[$date] = $this->convertValueToIntArray($value);
             }
         }
 
         return $selectedInventories;
+    }
+
+    /**
+     * 从旧格式的键中提取日期
+     */
+    private function extractDateFromLegacyKey(string $key): string
+    {
+        $datePart = substr($key, 10); // 去掉 'inventory_' 前缀
+
+        return str_replace('_', '-', $datePart);
+    }
+
+    /**
+     * 将值转换为整数数组
+     *
+     * @return int[]
+     */
+    private function convertValueToIntArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_map(fn ($v) => is_numeric($v) ? (int) $v : 0, $value);
+        }
+
+        return is_numeric($value) ? [(int) $value] : [0];
     }
 
     /**
@@ -104,6 +177,7 @@ class OrderCreationService
         if (null === $agent) {
             throw new OrderProcessingException('代理商不存在');
         }
+
         return $agent;
     }
 
@@ -112,10 +186,11 @@ class OrderCreationService
      */
     public function findAndValidateRoomType(int $roomTypeId): RoomType
     {
-        $roomType = $this->roomTypeRepository->find($roomTypeId);
+        $roomType = $this->roomTypeService->findRoomTypeById($roomTypeId);
         if (null === $roomType) {
             throw new OrderProcessingException('房型不存在');
         }
+
         return $roomType;
     }
 
@@ -147,42 +222,25 @@ class OrderCreationService
         $order->setOrderNo($orderNo);
 
         $this->entityManager->persist($order);
+
         return $order;
     }
 
     /**
      * 验证选择的库存并占用
+     *
+     * 不考虑并发：此方法在事务内执行，由调用方确保事务隔离
      */
     public function validateAndReserveInventory(
         int $inventoryId,
         RoomType $roomType,
-        string $dateStr
+        string $dateStr,
     ): DailyInventory {
-        $dailyInventory = $this->dailyInventoryRepository
-            ->find($inventoryId);
-
-        if (null === $dailyInventory) {
-            throw new OrderProcessingException("日期 {$dateStr} 选择的库存不存在");
-        }
-
-        // 验证库存是否匹配房型和日期
-        if (
-            $dailyInventory->getRoomType()->getId() !== $roomType->getId() ||
-            $dailyInventory->getDate()->format('Y-m-d') !== $dateStr
-        ) {
-            throw new OrderProcessingException("日期 {$dateStr} 选择的库存不匹配");
-        }
-
-        // 检查库存状态 - 只能选择可用状态的库存
-        if ($dailyInventory->getStatus() !== DailyInventoryStatusEnum::AVAILABLE) {
-            throw new OrderProcessingException("日期 {$dateStr} 选择的库存已被占用或不可用，当前状态：{$dailyInventory->getStatus()->getLabel()}");
-        }
-
-        // 占用库存 - 设置为待确认状态
-        $dailyInventory->setStatus(DailyInventoryStatusEnum::PENDING);
-        $this->entityManager->persist($dailyInventory);
-
-        return $dailyInventory;
+        return $this->roomTypeInventoryService->validateAndReserveInventoryById(
+            $inventoryId,
+            $roomType,
+            $dateStr
+        );
     }
 
     /**
@@ -193,7 +251,7 @@ class OrderCreationService
         RoomType $roomType,
         \DateTimeImmutable $checkInDate,
         \DateTimeImmutable $checkOutDate,
-        DailyInventory $dailyInventory
+        DailyInventory $dailyInventory,
     ): OrderItem {
         $orderItem = new OrderItem();
         $orderItem->setOrder($order);
@@ -210,23 +268,31 @@ class OrderCreationService
         $orderItem->setCostPrice($dailyInventory->getCostPrice());
 
         $this->entityManager->persist($orderItem);
+
         return $orderItem;
     }
 
     /**
      * 创建完整的订单（包含订单项）
+     *
+     * @param array<string, mixed> $formData
      */
     public function createOrderWithItems(array $formData): Order
     {
         // 验证数据
         $this->validateOrderData($formData);
 
-        $agentId = (int)$formData['agent_id'];
-        $roomTypeId = (int)$formData['room_type_id'];
-        $checkInDate = new \DateTimeImmutable($formData['check_in_date']);
-        $checkOutDate = new \DateTimeImmutable($formData['check_out_date']);
-        $roomCount = (int)$formData['room_count'];
-        $remark = $formData['remark'] ?? '';
+        $agentId = is_numeric($formData['agent_id'] ?? null) ? (int) $formData['agent_id'] : throw new \InvalidArgumentException('Invalid agent_id');
+        $roomTypeId = is_numeric($formData['room_type_id'] ?? null) ? (int) $formData['room_type_id'] : throw new \InvalidArgumentException('Invalid room_type_id');
+        $checkInDateStr = is_string($formData['check_in_date'] ?? null) ? $formData['check_in_date'] : throw new \InvalidArgumentException('Invalid check_in_date');
+        $checkOutDateStr = is_string($formData['check_out_date'] ?? null) ? $formData['check_out_date'] : throw new \InvalidArgumentException('Invalid check_out_date');
+        $roomCount = is_numeric($formData['room_count'] ?? null) ? (int) $formData['room_count'] : throw new \InvalidArgumentException('Invalid room_count');
+
+        $remarkRaw = $formData['remark'] ?? '';
+        $remark = is_string($remarkRaw) ? $remarkRaw : '';
+
+        $checkInDate = new \DateTimeImmutable($checkInDateStr);
+        $checkOutDate = new \DateTimeImmutable($checkOutDateStr);
 
         // 验证基础数据
         $agent = $this->findAndValidateAgent($agentId);
@@ -239,52 +305,16 @@ class OrderCreationService
         $this->entityManager->beginTransaction();
 
         try {
-            // 创建订单
             $order = $this->createOrder($agent, $remark);
-            $totalOrderAmount = BigDecimal::zero();
+            $totalOrderAmount = $this->processOrderItemsByDate(
+                $order,
+                $roomType,
+                $checkInDate,
+                $checkOutDate,
+                $selectedInventories,
+                $roomCount
+            );
 
-            // 逐日创建订单项
-            $currentDate = $checkInDate;
-            while ($currentDate < $checkOutDate) {
-                $dateStr = $currentDate->format('Y-m-d');
-
-                // 检查用户是否选择了该日期的库存
-                if (!isset($selectedInventories[$dateStr]) || empty($selectedInventories[$dateStr])) {
-                    throw new OrderProcessingException("请为日期 {$dateStr} 选择库存方案");
-                }
-
-                // 验证选择的库存数量是否等于房间数量
-                $selectedInventoryIds = $selectedInventories[$dateStr];
-                if (count($selectedInventoryIds) !== $roomCount) {
-                    throw new OrderProcessingException("日期 {$dateStr} 选择的库存数量（" . count($selectedInventoryIds) . "）与房间数量（{$roomCount}）不匹配");
-                }
-
-                // 为每个选择的库存创建OrderItem
-                foreach ($selectedInventoryIds as $inventoryId) {
-                    // 验证并占用库存
-                    $dailyInventory = $this->validateAndReserveInventory(
-                        $inventoryId,
-                        $roomType,
-                        $dateStr
-                    );
-
-                    $nextDay = $currentDate->modify('+1 day');
-
-                    $orderItem = $this->createOrderItem(
-                        $order,
-                        $roomType,
-                        $currentDate,
-                        $nextDay,
-                        $dailyInventory
-                    );
-
-                    $totalOrderAmount = $totalOrderAmount->plus(BigDecimal::of($dailyInventory->getSellingPrice()));
-                }
-
-                $currentDate = $currentDate->modify('+1 day');
-            }
-
-            // 设置订单总金额
             $order->setTotalAmount($totalOrderAmount->toScale(2)->__toString());
 
             $this->entityManager->flush();
@@ -298,6 +328,94 @@ class OrderCreationService
     }
 
     /**
+     * 逐日处理订单项创建
+     *
+     * @param array<string, int[]> $selectedInventories
+     * @return BigDecimal
+     */
+    private function processOrderItemsByDate(
+        Order $order,
+        RoomType $roomType,
+        \DateTimeImmutable $checkInDate,
+        \DateTimeImmutable $checkOutDate,
+        array $selectedInventories,
+        int $roomCount,
+    ): BigDecimal {
+        $totalOrderAmount = BigDecimal::zero();
+        $currentDate = $checkInDate;
+
+        while ($currentDate < $checkOutDate) {
+            $dateStr = $currentDate->format('Y-m-d');
+            $dayAmount = $this->createOrderItemsForDate(
+                $order,
+                $roomType,
+                $currentDate,
+                $selectedInventories,
+                $dateStr,
+                $roomCount
+            );
+            $totalOrderAmount = $totalOrderAmount->plus($dayAmount);
+            $currentDate = $currentDate->modify('+1 day');
+        }
+
+        return $totalOrderAmount;
+    }
+
+    /**
+     * 为指定日期创建订单项
+     *
+     * @param array<string, int[]> $selectedInventories
+     * @return BigDecimal
+     */
+    private function createOrderItemsForDate(
+        Order $order,
+        RoomType $roomType,
+        \DateTimeImmutable $currentDate,
+        array $selectedInventories,
+        string $dateStr,
+        int $roomCount,
+    ): BigDecimal {
+        // 检查用户是否选择了该日期的库存
+        if (!isset($selectedInventories[$dateStr]) || [] === $selectedInventories[$dateStr]) {
+            throw new OrderProcessingException("请为日期 {$dateStr} 选择库存方案");
+        }
+
+        // 验证选择的库存数量是否等于房间数量
+        $selectedInventoryIds = $selectedInventories[$dateStr];
+        if (count($selectedInventoryIds) !== $roomCount) {
+            throw new OrderProcessingException("日期 {$dateStr} 选择的库存数量（" . count($selectedInventoryIds) . "）与房间数量（{$roomCount}）不匹配");
+        }
+
+        $dayAmount = BigDecimal::zero();
+        $nextDay = $currentDate->modify('+1 day');
+
+        // 为每个选择的库存创建OrderItem
+        foreach ($selectedInventoryIds as $inventoryId) {
+            // 验证并占用库存
+            $dailyInventory = $this->validateAndReserveInventory(
+                $inventoryId,
+                $roomType,
+                $dateStr
+            );
+
+            $orderItem = $this->createOrderItem(
+                $order,
+                $roomType,
+                $currentDate,
+                $nextDay,
+                $dailyInventory
+            );
+
+            // 将 OrderItem 添加到 Order 的集合中
+            $order->addOrderItem($orderItem);
+
+            $dayAmount = $dayAmount->plus(BigDecimal::of($dailyInventory->getSellingPrice()));
+        }
+
+        return $dayAmount;
+    }
+
+    /**
      * 释放订单的库存占用（订单创建失败时调用）
      */
     public function releaseOrderInventory(Order $order): void
@@ -306,8 +424,7 @@ class OrderCreationService
             if (null !== $orderItem->getDailyInventory()) {
                 $dailyInventory = $orderItem->getDailyInventory();
                 // 恢复为可用状态
-                $dailyInventory->setStatus(DailyInventoryStatusEnum::AVAILABLE);
-                $this->entityManager->persist($dailyInventory);
+                $this->roomTypeInventoryService->releaseInventory($dailyInventory);
             }
         }
         $this->entityManager->flush();

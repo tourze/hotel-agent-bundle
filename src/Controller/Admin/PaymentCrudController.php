@@ -1,12 +1,17 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminCrud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
+use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -20,6 +25,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\Response;
+use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\Payment;
 use Tourze\HotelAgentBundle\Enum\PaymentMethodEnum;
 use Tourze\HotelAgentBundle\Enum\PaymentStatusEnum;
@@ -27,14 +33,17 @@ use Tourze\HotelAgentBundle\Service\PaymentService;
 
 /**
  * 支付记录管理控制器
+ * @extends AbstractCrudController<Payment>
  */
-class PaymentCrudController extends AbstractCrudController
+#[AdminCrud(routePath: '/hotel-agent/payment', routeName: 'hotel_agent_payment')]
+final class PaymentCrudController extends AbstractCrudController
 {
     public function __construct(
         private readonly PaymentService $paymentService,
         private readonly AdminUrlGenerator $adminUrlGenerator,
         private readonly EntityManagerInterface $entityManager,
-    ) {}
+    ) {
+    }
 
     public static function getEntityFqcn(): string
     {
@@ -52,7 +61,8 @@ class PaymentCrudController extends AbstractCrudController
             ->setPageTitle('detail', '支付记录详情')
             ->setDefaultSort(['createTime' => 'DESC'])
             ->setPaginatorPageSize(20)
-            ->showEntityActionsInlined();
+            ->showEntityActionsInlined()
+        ;
     }
 
     public function configureFields(string $pageName): iterable
@@ -60,9 +70,12 @@ class PaymentCrudController extends AbstractCrudController
         return [
             AssociationField::new('agentBill', '关联账单')
                 ->setFormTypeOptions([
-                    'choice_label' => function ($agentBill) {
-                        return sprintf('%s (%s)', $agentBill->getBillMonth(), $agentBill->getAgent()->getCompanyName());
-                    }
+                    'choice_label' => function (AgentBill $agentBill): string {
+                        $agent = $agentBill->getAgent();
+                        $companyName = null !== $agent ? $agent->getCompanyName() : 'Unknown Agent';
+
+                        return sprintf('%s (%s)', $agentBill->getBillMonth(), $companyName);
+                    },
                 ])
                 ->setCrudController(AgentBillCrudController::class),
 
@@ -84,7 +97,7 @@ class PaymentCrudController extends AbstractCrudController
                     PaymentStatusEnum::SUCCESS->value => 'success',
                     PaymentStatusEnum::FAILED->value => 'danger',
                     PaymentStatusEnum::REFUNDED->value => 'info',
-                    PaymentStatusEnum::CANCELLED->value => 'secondary'
+                    PaymentStatusEnum::CANCELLED->value => 'secondary',
                 ]),
 
             TextField::new('transactionId', '第三方交易号')
@@ -116,7 +129,7 @@ class PaymentCrudController extends AbstractCrudController
 
             DateTimeField::new('updateTime', '更新时间')
                 ->hideOnForm()
-                ->hideOnIndex()
+                ->hideOnIndex(),
         ];
     }
 
@@ -125,23 +138,26 @@ class PaymentCrudController extends AbstractCrudController
         $processSuccessAction = Action::new('processSuccess', '标记成功', 'fa fa-check')
             ->linkToCrudAction('processPaymentSuccess')
             ->displayIf(static function (Payment $payment) {
-                return $payment->getStatus() === PaymentStatusEnum::PENDING;
+                return PaymentStatusEnum::PENDING === $payment->getStatus();
             })
-            ->setCssClass('btn btn-success');
+            ->setCssClass('btn btn-success')
+        ;
 
         $processFailureAction = Action::new('processFailure', '标记失败', 'fa fa-times')
             ->linkToCrudAction('processPaymentFailure')
             ->displayIf(static function (Payment $payment) {
-                return $payment->getStatus() === PaymentStatusEnum::PENDING;
+                return PaymentStatusEnum::PENDING === $payment->getStatus();
             })
-            ->setCssClass('btn btn-danger');
+            ->setCssClass('btn btn-danger')
+        ;
 
         $confirmAction = Action::new('confirm', '确认支付', 'fa fa-check-circle')
             ->linkToCrudAction('confirmPayment')
             ->displayIf(static function (Payment $payment) {
-                return $payment->getStatus() === PaymentStatusEnum::SUCCESS;
+                return PaymentStatusEnum::SUCCESS === $payment->getStatus();
             })
-            ->setCssClass('btn btn-info');
+            ->setCssClass('btn btn-info')
+        ;
 
         return $actions
             ->add(Crud::PAGE_INDEX, $processSuccessAction)
@@ -150,16 +166,7 @@ class PaymentCrudController extends AbstractCrudController
             ->add(Crud::PAGE_DETAIL, $processSuccessAction)
             ->add(Crud::PAGE_DETAIL, $processFailureAction)
             ->add(Crud::PAGE_DETAIL, $confirmAction)
-            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
-                return $action->displayIf(static function (Payment $payment) {
-                    return $payment->getStatus() === PaymentStatusEnum::PENDING;
-                });
-            })
-            ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
-                return $action->displayIf(static function (Payment $payment) {
-                    return $payment->getStatus() === PaymentStatusEnum::PENDING;
-                });
-            });
+        ;
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -169,23 +176,26 @@ class PaymentCrudController extends AbstractCrudController
             ->add(ChoiceFilter::new('status')->setChoices(PaymentStatusEnum::cases()))
             ->add(ChoiceFilter::new('paymentMethod')->setChoices(PaymentMethodEnum::cases()))
             ->add(DateTimeFilter::new('createTime'))
-            ->add(DateTimeFilter::new('paymentTime'));
+            ->add(DateTimeFilter::new('paymentTime'))
+        ;
     }
 
     /**
      * 处理支付成功
      */
+    #[AdminAction(routeName: 'admin_payment_process_success', routePath: '/payment/process-success')]
     public function processPaymentSuccess(AdminContext $context): Response
     {
         $payment = $context->getEntity()->getInstance();
-        
+
         if (!$payment instanceof Payment) {
             $this->addFlash('danger', '无效的支付记录');
+
             return $this->redirectToRoute('admin');
         }
 
         $success = $this->paymentService->processPaymentSuccess($payment);
-        
+
         if ($success) {
             $this->addFlash('success', '支付已标记为成功');
         } else {
@@ -201,22 +211,25 @@ class PaymentCrudController extends AbstractCrudController
     /**
      * 处理支付失败
      */
+    #[AdminAction(routeName: 'admin_payment_process_failure', routePath: '/payment/process-failure')]
     public function processPaymentFailure(AdminContext $context): Response
     {
         $payment = $context->getEntity()->getInstance();
-        
+
         if (!$payment instanceof Payment) {
             $this->addFlash('danger', '无效的支付记录');
+
             return $this->redirectToRoute('admin');
         }
 
         $request = $context->getRequest();
-        
+
         if ($request->isMethod('POST')) {
             $failureReason = $request->request->get('failureReason', '管理员标记失败');
-            
+            assert(is_string($failureReason));
+
             $success = $this->paymentService->processPaymentFailure($payment, $failureReason);
-            
+
             if ($success) {
                 $this->addFlash('success', '支付已标记为失败');
             } else {
@@ -230,25 +243,27 @@ class PaymentCrudController extends AbstractCrudController
         }
 
         // 显示失败原因输入表单
-        return $this->render('admin/payment/failure_form.html.twig', [
-            'payment' => $payment
+        return $this->render('@HotelAgent/admin/payment/failure_form.html.twig', [
+            'payment' => $payment,
         ]);
     }
 
     /**
      * 确认支付
      */
+    #[AdminAction(routeName: 'admin_payment_confirm', routePath: '/payment/confirm')]
     public function confirmPayment(AdminContext $context): Response
     {
         $payment = $context->getEntity()->getInstance();
-        
+
         if (!$payment instanceof Payment) {
             $this->addFlash('danger', '无效的支付记录');
+
             return $this->redirectToRoute('admin');
         }
 
         $success = $this->paymentService->confirmPayment($payment);
-        
+
         if ($success) {
             $this->addFlash('success', '支付已确认');
         } else {
@@ -263,22 +278,23 @@ class PaymentCrudController extends AbstractCrudController
 
     /**
      * 自定义新建表单
+     * @return Response|KeyValueStore
      */
-    public function new(AdminContext $context): Response
+    public function new(AdminContext $context)
     {
         $response = parent::new($context);
 
         if ($context->getRequest()->isMethod('POST')) {
             $payment = $context->getEntity()->getInstance();
-            if ($payment instanceof Payment && null !== $payment->getId()) {
+            if ($payment instanceof Payment && $payment->getId() > 0) {
                 // 新建成功后自动生成支付单号
-                if (empty($payment->getPaymentNo())) {
+                if ('' === $payment->getPaymentNo()) {
                     $payment->generatePaymentNo();
                     $this->entityManager->flush();
                 }
             }
         }
-        
+
         return $response;
     }
 }

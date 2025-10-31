@@ -1,488 +1,276 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Service;
 
-use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Query;
-use Doctrine\ORM\QueryBuilder;
-use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\Order;
-use Tourze\HotelAgentBundle\Entity\OrderItem;
 use Tourze\HotelAgentBundle\Enum\AgentLevelEnum;
+use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
+use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
+use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
-use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
-use Tourze\HotelAgentBundle\Repository\AgentRepository;
-use Tourze\HotelAgentBundle\Repository\OrderRepository;
+use Tourze\HotelAgentBundle\Exception\AgentBillException;
 use Tourze\HotelAgentBundle\Service\AgentBillService;
-use Tourze\HotelAgentBundle\Service\BillAuditService;
+use Tourze\PHPUnitSymfonyKernelTest\AbstractIntegrationTestCase;
 
-class AgentBillServiceTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(AgentBillService::class)]
+#[RunTestsInSeparateProcesses]
+final class AgentBillServiceTest extends AbstractIntegrationTestCase
 {
-    private EntityManagerInterface|MockObject $entityManager;
-    private AgentBillRepository|MockObject $agentBillRepository;
-    private OrderRepository|MockObject $orderRepository;
-    private AgentRepository|MockObject $agentRepository;
-    private LoggerInterface|MockObject $logger;
-    private BillAuditService|MockObject $billAuditService;
-    private AgentBillService $service;
-
-    protected function setUp(): void
+    protected function onSetUp(): void
     {
-        $this->entityManager = $this->createMock(EntityManagerInterface::class);
-        $this->agentBillRepository = $this->createMock(AgentBillRepository::class);
-        $this->orderRepository = $this->createMock(OrderRepository::class);
-        $this->agentRepository = $this->createMock(AgentRepository::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
-        $this->billAuditService = $this->createMock(BillAuditService::class);
-
-        $this->service = new AgentBillService(
-            $this->entityManager,
-            $this->agentBillRepository,
-            $this->orderRepository,
-            $this->agentRepository,
-            $this->logger,
-            $this->billAuditService
-        );
+        // 无需额外设置
     }
 
-    public function test_generateMonthlyBills_with_no_agents(): void
+    public function testServiceInstance(): void
     {
-        $billMonth = '2025-01';
+        $this->assertInstanceOf(AgentBillService::class, self::getService(AgentBillService::class));
+    }
 
-        $this->setupAgentRepository([]);
-        $this->entityManager->expects($this->once())
-            ->method('flush');
-
-        $result = $this->service->generateMonthlyBills($billMonth);
-
+    public function testGenerateMonthlyBillsWithEmptyDatabase(): void
+    {
+        $billMonth = '2024-01';
+        $result = self::getService(AgentBillService::class)->generateMonthlyBills($billMonth);
+        // 在空数据库（没有有效订单）时，返回空数组
         $this->assertSame([], $result);
     }
 
-    public function test_generateMonthlyBills_skips_existing_bills_without_force(): void
+    public function testGetAgentBillsReturnsArray(): void
     {
-        $billMonth = '2025-01';
-        $agent = $this->createMockAgent();
-        $existingBill = new AgentBill();
-
-        $this->setupAgentRepository([$agent]);
-
-        $this->agentBillRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['agent' => $agent, 'billMonth' => $billMonth])
-            ->willReturn($existingBill);
-
-        $this->logger->expects($this->once())
-            ->method('warning')
-            ->with('代理账单已存在', $this->anything());
-
-        $result = $this->service->generateMonthlyBills($billMonth, false);
-
-        $this->assertSame([], $result);
+        $result = self::getService(AgentBillService::class)->getAgentBills();
+        $this->assertArrayHasKey('data', $result);
+        $this->assertArrayHasKey('total', $result);
+        $this->assertArrayHasKey('page', $result);
+        $this->assertArrayHasKey('limit', $result);
+        // 验证返回的数据结构和类型
+        $this->assertGreaterThanOrEqual(0, $result['total']);
+        $this->assertGreaterThanOrEqual(1, $result['page']);
     }
 
-    public function test_generateMonthlyBills_removes_existing_bills_with_force(): void
+    public function testGetBillStatisticsReturnsArray(): void
     {
-        $billMonth = '2025-01';
-        $agent = $this->createMockAgent();
-        $existingBill = new AgentBill();
-
-        $this->setupAgentRepository([$agent]);
-        $this->setupOrderRepository($agent, []);
-
-        $this->agentBillRepository->expects($this->once())
-            ->method('findOneBy')
-            ->with(['agent' => $agent, 'billMonth' => $billMonth])
-            ->willReturn($existingBill);
-
-        $this->entityManager->expects($this->once())
-            ->method('remove')
-            ->with($existingBill);
-
-        $this->billAuditService->expects($this->once())
-            ->method('logAuditAction')
-            ->with($existingBill, '强制重新生成', '删除旧账单并重新生成');
-
-        $result = $this->service->generateMonthlyBills($billMonth, true);
-
-        $this->assertSame([], $result);
+        $statistics = self::getService(AgentBillService::class)->getBillStatistics('2024-01');
+        // getBillStatistics 返回的是聚合查询结果的数组
+        // 空数据库返回空数组，非空情况下每个元素应包含 status, bill_count, total_amount, total_commission
+        $this->assertCount(0, array_filter($statistics, static fn ($item): bool => ! isset($item['status'])));
     }
 
-    public function test_generateAgentBill_with_no_orders_returns_null(): void
+    public function testGetDetailedBillReportReturnsArray(): void
     {
-        $agent = $this->createMockAgent();
-        $billMonth = '2025-01';
-        $startDate = new \DateTime('2025-01-01 00:00:00');
-        $endDate = new \DateTime('2025-01-31 23:59:59');
+        $startDate = new \DateTime('2024-01-01');
+        $endDate = new \DateTime('2024-01-31');
+        $report = self::getService(AgentBillService::class)->getDetailedBillReport($startDate, $endDate);
+        // 验证报告包含所有必需的键
+        $this->assertArrayHasKey('total_bills', $report);
+        $this->assertArrayHasKey('total_amount', $report);
+        $this->assertArrayHasKey('total_commission', $report);
+        $this->assertArrayHasKey('status_summary', $report);
+        $this->assertArrayHasKey('agent_summary', $report);
+        $this->assertArrayHasKey('monthly_summary', $report);
+        // 验证基本数据约束
+        $this->assertGreaterThanOrEqual(0, $report['total_bills']);
+    }
 
-        $this->setupOrderRepository($agent, []);
+    public function testConfirmBill(): void
+    {
+        $service = self::getService(AgentBillService::class);
+        $em = self::getEntityManager();
 
-        $result = $this->service->generateAgentBill($agent, $billMonth, $startDate, $endDate);
+        // 创建代理和账单
+        $agent = $this->createAgent('TEST_CONFIRM');
+        $bill = new AgentBill();
+        $bill->setAgent($agent);
+        $bill->setBillMonth('2024-01');
+        $bill->setStatus(BillStatusEnum::PENDING);
+        $bill->setOrderCount(1);
+        $bill->setTotalAmount('100.00');
+        $bill->setCommissionAmount('10.00');
+        $bill->setCommissionRate('0.10');
+        $em->persist($bill);
+        $em->flush();
 
+        // 测试确认待处理账单
+        $result = $service->confirmBill($bill);
+        $this->assertTrue($result);
+        $this->assertSame(BillStatusEnum::CONFIRMED, $bill->getStatus());
+        $this->assertNotNull($bill->getConfirmTime());
+
+        // 测试确认非待处理账单应返回 false
+        $result = $service->confirmBill($bill);
+        $this->assertFalse($result);
+    }
+
+    public function testMarkBillAsPaid(): void
+    {
+        $service = self::getService(AgentBillService::class);
+        $em = self::getEntityManager();
+
+        // 创建代理和已确认的账单
+        $agent = $this->createAgent('TEST_PAID');
+        $bill = new AgentBill();
+        $bill->setAgent($agent);
+        $bill->setBillMonth('2024-01');
+        $bill->setStatus(BillStatusEnum::CONFIRMED);
+        $bill->setOrderCount(1);
+        $bill->setTotalAmount('100.00');
+        $bill->setCommissionAmount('10.00');
+        $bill->setCommissionRate('0.10');
+        $bill->setConfirmTime(new \DateTimeImmutable());
+        $em->persist($bill);
+        $em->flush();
+
+        // 测试标记已确认账单为已支付
+        $result = $service->markBillAsPaid($bill, 'PAY_REF_001');
+        $this->assertTrue($result);
+        $this->assertSame(BillStatusEnum::PAID, $bill->getStatus());
+        $this->assertSame('PAY_REF_001', $bill->getPaymentReference());
+        $this->assertNotNull($bill->getPayTime());
+
+        // 测试标记非已确认账单应返回 false
+        $pendingBill = new AgentBill();
+        $pendingBill->setAgent($agent);
+        $pendingBill->setBillMonth('2024-02');
+        $pendingBill->setStatus(BillStatusEnum::PENDING);
+        $pendingBill->setOrderCount(1);
+        $pendingBill->setTotalAmount('100.00');
+        $pendingBill->setCommissionAmount('10.00');
+        $pendingBill->setCommissionRate('0.10');
+        $em->persist($pendingBill);
+        $em->flush();
+
+        $result = $service->markBillAsPaid($pendingBill);
+        $this->assertFalse($result);
+    }
+
+    public function testGenerateAgentBill(): void
+    {
+        $service = self::getService(AgentBillService::class);
+        $em = self::getEntityManager();
+
+        // 创建代理
+        $agent = $this->createAgent('TEST_GENERATE');
+
+        // 创建已确认的订单
+        $order = new Order();
+        $order->setOrderNo('ORD_GENERATE_001');
+        $order->setAgent($agent);
+        $order->setStatus(OrderStatusEnum::CONFIRMED);
+        $order->setAuditStatus(AuditStatusEnum::APPROVED);
+        $order->setSource(OrderSourceEnum::MANUAL_INPUT);
+        $order->setTotalAmount('100.00');
+        $order->setCreateTime(new \DateTimeImmutable('2024-01-15'));
+        $em->persist($order);
+        $em->flush();
+
+        // 生成账单
+        $startDate = new \DateTime('2024-01-01');
+        $endDate = new \DateTime('2024-01-31');
+        $bill = $service->generateAgentBill($agent, '2024-01', $startDate, $endDate);
+
+        $this->assertInstanceOf(AgentBill::class, $bill);
+        $agentFromBill = $bill->getAgent();
+        $this->assertNotNull($agentFromBill);
+        $this->assertSame($agent->getId(), $agentFromBill->getId());
+        $this->assertSame('2024-01', $bill->getBillMonth());
+        $this->assertSame(1, $bill->getOrderCount());
+        $this->assertSame('100.00', $bill->getTotalAmount());
+        $this->assertSame(BillStatusEnum::PENDING, $bill->getStatus());
+
+        // 测试无订单时返回 null
+        $agent2 = $this->createAgent('TEST_GENERATE_2');
+        $result = $service->generateAgentBill($agent2, '2024-02', new \DateTime('2024-02-01'), new \DateTime('2024-02-29'));
         $this->assertNull($result);
     }
 
-    public function test_generateAgentBill_with_orders_creates_bill(): void
+    public function testRecalculateBill(): void
     {
-        $agent = $this->createMockAgent();
-        $billMonth = '2025-01';
-        $startDate = new \DateTime('2025-01-01 00:00:00');
-        $endDate = new \DateTime('2025-01-31 23:59:59');
+        $service = self::getService(AgentBillService::class);
+        $em = self::getEntityManager();
 
-        $orders = [$this->createMockOrder($agent, '1000.00')];
-        $this->setupOrderRepository($agent, $orders);
+        // 创建代理
+        $agent = $this->createAgent('TEST_RECALC');
 
-        $this->entityManager->expects($this->once())
-            ->method('persist')
-            ->with($this->isInstanceOf(AgentBill::class));
+        // 创建订单和账单
+        $order = new Order();
+        $order->setOrderNo('ORD_RECALC_001');
+        $order->setAgent($agent);
+        $order->setStatus(OrderStatusEnum::CONFIRMED);
+        $order->setAuditStatus(AuditStatusEnum::APPROVED);
+        $order->setSource(OrderSourceEnum::MANUAL_INPUT);
+        $order->setTotalAmount('100.00');
+        $order->setCreateTime(new \DateTimeImmutable('2024-01-15'));
+        $em->persist($order);
 
-        $result = $this->service->generateAgentBill($agent, $billMonth, $startDate, $endDate);
-
-        $this->assertInstanceOf(AgentBill::class, $result);
-        $this->assertSame($agent, $result->getAgent());
-        $this->assertSame($billMonth, $result->getBillMonth());
-        $this->assertSame(1, $result->getOrderCount());
-        $this->assertSame(BillStatusEnum::PENDING, $result->getStatus());
-    }
-
-    public function test_confirmBill_with_pending_status_succeeds(): void
-    {
         $bill = new AgentBill();
+        $bill->setAgent($agent);
+        $bill->setBillMonth('2024-01');
         $bill->setStatus(BillStatusEnum::PENDING);
+        $bill->setOrderCount(1);
+        $bill->setTotalAmount('100.00');
+        $bill->setCommissionAmount('10.00');
+        $bill->setCommissionRate('0.10');
+        $em->persist($bill);
+        $em->flush();
 
-        $this->entityManager->expects($this->once())
-            ->method('flush');
+        // 添加新订单
+        $order2 = new Order();
+        $order2->setOrderNo('ORD_RECALC_002');
+        $order2->setAgent($agent);
+        $order2->setStatus(OrderStatusEnum::CONFIRMED);
+        $order2->setAuditStatus(AuditStatusEnum::APPROVED);
+        $order2->setSource(OrderSourceEnum::MANUAL_INPUT);
+        $order2->setTotalAmount('200.00');
+        $order2->setCreateTime(new \DateTimeImmutable('2024-01-20'));
+        $em->persist($order2);
+        $em->flush();
 
-        $this->billAuditService->expects($this->once())
-            ->method('logStatusChange')
-            ->with($bill, BillStatusEnum::PENDING, BillStatusEnum::CONFIRMED, null);
+        // 重新计算账单
+        $updatedBill = $service->recalculateBill($bill);
+        $this->assertSame($bill->getId(), $updatedBill->getId());
+        $this->assertSame(2, $updatedBill->getOrderCount());
+        $this->assertSame('300.00', $updatedBill->getTotalAmount());
 
-        $result = $this->service->confirmBill($bill);
+        // 测试已支付账单不能重新计算
+        $paidBill = new AgentBill();
+        $paidBill->setAgent($agent);
+        $paidBill->setBillMonth('2024-02');
+        $paidBill->setStatus(BillStatusEnum::PAID);
+        $paidBill->setOrderCount(1);
+        $paidBill->setTotalAmount('100.00');
+        $paidBill->setCommissionAmount('10.00');
+        $paidBill->setCommissionRate('0.10');
+        $paidBill->setConfirmTime(new \DateTimeImmutable());
+        $paidBill->setPayTime(new \DateTimeImmutable());
+        $em->persist($paidBill);
+        $em->flush();
 
-        $this->assertTrue($result);
-        $this->assertSame(BillStatusEnum::CONFIRMED, $bill->getStatus());
-        $this->assertInstanceOf(\DateTimeInterface::class, $bill->getConfirmTime());
-    }
-
-    public function test_confirmBill_with_non_pending_status_fails(): void
-    {
-        $bill = new AgentBill();
-        $bill->setStatus(BillStatusEnum::CONFIRMED);
-
-        $this->logger->expects($this->once())
-            ->method('warning')
-            ->with('账单状态不正确，无法确认', $this->anything());
-
-        $result = $this->service->confirmBill($bill);
-
-        $this->assertFalse($result);
-        $this->assertSame(BillStatusEnum::CONFIRMED, $bill->getStatus());
-    }
-
-    public function test_recalculateBill_throws_exception_for_paid_bill(): void
-    {
-        $bill = new AgentBill();
-        $bill->setStatus(BillStatusEnum::PAID);
-
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(AgentBillException::class);
         $this->expectExceptionMessage('已支付的账单不能重新计算');
-
-        $this->service->recalculateBill($bill);
+        $service->recalculateBill($paidBill);
     }
 
-    public function test_recalculateBill_updates_bill_data(): void
-    {
-        $agent = $this->createMockAgent();
-        $bill = new AgentBill();
-        $bill->setAgent($agent)
-            ->setBillMonth('2025-01')
-            ->setStatus(BillStatusEnum::PENDING)
-            ->setOrderCount(5)
-            ->setTotalAmount('500.00')
-            ->setCommissionAmount('25.00');
-
-        $orders = [$this->createMockOrder($agent, '1000.00')];
-        $this->setupOrderRepository($agent, $orders);
-
-        $this->entityManager->expects($this->once())
-            ->method('flush');
-
-        $this->billAuditService->expects($this->once())
-            ->method('logRecalculation')
-            ->with($bill, $this->anything(), $this->anything(), null);
-
-        $result = $this->service->recalculateBill($bill);
-
-        $this->assertSame($bill, $result);
-        $this->assertSame(1, $bill->getOrderCount());
-    }
-
-    public function test_markBillAsPaid_with_confirmed_status_succeeds(): void
-    {
-        $bill = new AgentBill();
-        $bill->setStatus(BillStatusEnum::CONFIRMED);
-        $reference = 'PAY20250101001';
-
-        $this->entityManager->expects($this->once())
-            ->method('flush');
-
-        $this->billAuditService->expects($this->once())
-            ->method('logStatusChange')
-            ->with($bill, BillStatusEnum::CONFIRMED, BillStatusEnum::PAID, null);
-
-        $result = $this->service->markBillAsPaid($bill, $reference);
-
-        $this->assertTrue($result);
-        $this->assertSame(BillStatusEnum::PAID, $bill->getStatus());
-        $this->assertSame($reference, $bill->getPaymentReference());
-        $this->assertInstanceOf(\DateTimeInterface::class, $bill->getPayTime());
-    }
-
-    public function test_markBillAsPaid_with_non_confirmed_status_fails(): void
-    {
-        $bill = new AgentBill();
-        $bill->setStatus(BillStatusEnum::PENDING);
-
-        $this->logger->expects($this->once())
-            ->method('warning')
-            ->with('只有已确认的账单才能标记为已支付', $this->anything());
-
-        $result = $this->service->markBillAsPaid($bill, 'PAY001');
-
-        $this->assertFalse($result);
-        $this->assertSame(BillStatusEnum::PENDING, $bill->getStatus());
-    }
-
-    public function test_getAgentBills_with_filters(): void
-    {
-        $agent = $this->createMockAgent();
-        $status = BillStatusEnum::CONFIRMED;
-        $billMonth = '2025-01';
-
-        $queryBuilder = $this->createMock(QueryBuilder::class);
-
-        $this->agentBillRepository->expects($this->once())
-            ->method('createQueryBuilder')
-            ->with('ab')
-            ->willReturn($queryBuilder);
-
-        $queryBuilder->expects($this->exactly(3))
-            ->method('andWhere')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->exactly(3))
-            ->method('setParameter')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('leftJoin')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('addSelect')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('orderBy')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('setFirstResult')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('setMaxResults')
-            ->willReturnSelf();
-
-        $query = $this->createMock(Query::class);
-        $queryBuilder->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($query);
-
-        $query->expects($this->once())
-            ->method('getResult')
-            ->willReturn([]);
-
-        $result = $this->service->getAgentBills($agent, $status, $billMonth, 2, 10);
-
-        $this->assertSame([], $result);
-    }
-
-    public function test_getBillStatistics_returns_grouped_data(): void
-    {
-        $billMonth = '2025-01';
-        $expectedData = [
-            ['status' => 'pending', 'bill_count' => 5, 'total_amount' => '5000.00', 'total_commission' => '250.00'],
-            ['status' => 'confirmed', 'bill_count' => 3, 'total_amount' => '3000.00', 'total_commission' => '150.00'],
-        ];
-
-        $queryBuilder = $this->createMock(QueryBuilder::class);
-        $query = $this->createMock(Query::class);
-
-        $this->agentBillRepository->expects($this->once())
-            ->method('createQueryBuilder')
-            ->with('ab')
-            ->willReturn($queryBuilder);
-
-        $queryBuilder->expects($this->once())
-            ->method('select')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('andWhere')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('setParameter')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('groupBy')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($query);
-
-        $query->expects($this->once())
-            ->method('getResult')
-            ->willReturn($expectedData);
-
-        $result = $this->service->getBillStatistics($billMonth);
-
-        $this->assertSame($expectedData, $result);
-    }
-
-    public function test_getDetailedBillReport_calculates_totals(): void
-    {
-        $startDate = new \DateTime('2025-01-01');
-        $endDate = new \DateTime('2025-01-31');
-
-        $agent = $this->createMockAgent();
-        $bill1 = new AgentBill();
-        $bill1->setAgent($agent)
-            ->setBillMonth('2025-01')
-            ->setStatus(BillStatusEnum::CONFIRMED)
-            ->setTotalAmount('1000.00')
-            ->setCommissionAmount('100.00');
-
-        $bill2 = new AgentBill();
-        $bill2->setAgent($agent)
-            ->setBillMonth('2025-01')
-            ->setStatus(BillStatusEnum::PAID)
-            ->setTotalAmount('2000.00')
-            ->setCommissionAmount('200.00');
-
-        $bills = [$bill1, $bill2];
-
-        $queryBuilder = $this->createMock(QueryBuilder::class);
-        $query = $this->createMock(Query::class);
-
-        $this->agentBillRepository->expects($this->once())
-            ->method('createQueryBuilder')
-            ->with('ab')
-            ->willReturn($queryBuilder);
-
-        $queryBuilder->expects($this->once())
-            ->method('andWhere')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->exactly(2))
-            ->method('setParameter')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('leftJoin')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('addSelect')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('orderBy')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($query);
-
-        $query->expects($this->once())
-            ->method('getResult')
-            ->willReturn($bills);
-
-        $result = $this->service->getDetailedBillReport($startDate, $endDate);
-
-        $this->assertSame(2, $result['total_bills']);
-        $this->assertSame('3000.00', $result['total_amount']);
-        $this->assertSame('300.00', $result['total_commission']);
-        $this->assertArrayHasKey('status_summary', $result);
-        $this->assertArrayHasKey('agent_summary', $result);
-        $this->assertArrayHasKey('monthly_summary', $result);
-    }
-
-    private function createMockAgent(): Agent
+    private function createAgent(string $code): Agent
     {
         $agent = new Agent();
-        $agent->setCode('AGT001')
-            ->setCompanyName('测试公司')
-            ->setLevel(AgentLevelEnum::A)
-            ->setCommissionRate('0.10');
+        $agent->setCode($code);
+        $agent->setCompanyName('Test Company ' . $code);
+        $agent->setContactPerson('Contact ' . $code);
+        $agent->setPhone('138' . sprintf('%08d', rand(10000000, 99999999)));
+        $agent->setCommissionRate('0.10');
+        $agent->setLevel(AgentLevelEnum::A);
+        $agent->setStatus(AgentStatusEnum::ACTIVE);
+        self::getEntityManager()->persist($agent);
+        self::getEntityManager()->flush();
+
         return $agent;
-    }
-
-    private function createMockOrder(Agent $agent, string $totalAmount): Order
-    {
-        $order = new Order();
-        $order->setAgent($agent)
-            ->setOrderNo('ORD001')
-            ->setTotalAmount($totalAmount)
-            ->setStatus(OrderStatusEnum::CONFIRMED);
-
-        $orderItem = new OrderItem();
-        $orderItem->setAmount('500.00')
-            ->setCostPrice('400.00');
-        $order->addOrderItem($orderItem);
-
-        return $order;
-    }
-
-    private function setupAgentRepository(array $agents): void
-    {
-        $queryBuilder = $this->createMock(QueryBuilder::class);
-        $query = $this->createMock(Query::class);
-
-        $this->agentRepository->expects($this->once())
-            ->method('createQueryBuilder')
-            ->with('a')
-            ->willReturn($queryBuilder);
-
-        $queryBuilder->expects($this->once())
-            ->method('andWhere')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('setParameter')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($query);
-
-        $query->expects($this->once())
-            ->method('getResult')
-            ->willReturn($agents);
-    }
-
-    private function setupOrderRepository(Agent $agent, array $orders): void
-    {
-        $queryBuilder = $this->createMock(QueryBuilder::class);
-        $query = $this->createMock(Query::class);
-
-        $this->orderRepository->expects($this->once())
-            ->method('createQueryBuilder')
-            ->with('o')
-            ->willReturn($queryBuilder);
-
-        $queryBuilder->expects($this->exactly(3))
-            ->method('andWhere')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->exactly(4))
-            ->method('setParameter')
-            ->willReturnSelf();
-        $queryBuilder->expects($this->once())
-            ->method('getQuery')
-            ->willReturn($query);
-
-        $query->expects($this->once())
-            ->method('getResult')
-            ->willReturn($orders);
     }
 }

@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Entity;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Entity\OrderItem;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
@@ -10,349 +13,410 @@ use Tourze\HotelContractBundle\Entity\DailyInventory;
 use Tourze\HotelContractBundle\Entity\HotelContract;
 use Tourze\HotelProfileBundle\Entity\Hotel;
 use Tourze\HotelProfileBundle\Entity\RoomType;
+use Tourze\PHPUnitDoctrineEntity\AbstractEntityTestCase;
 
-class OrderItemTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(OrderItem::class)]
+final class OrderItemTest extends AbstractEntityTestCase
 {
-    private OrderItem $orderItem;
-
-    protected function setUp(): void
+    public function testConstructInitializesDefaults(): void
     {
-        $this->orderItem = new OrderItem();
+        $orderItem = new OrderItem();
+        $this->assertSame([], $orderItem->getContractChangeHistory());
+        $this->assertSame(OrderItemStatusEnum::PENDING, $orderItem->getStatus());
     }
 
-    public function test_construct_initializes_defaults(): void
+    public function testToStringReturnsHotelRoomtypeAndDateRange(): void
     {
-        $this->assertSame([], $this->orderItem->getContractChangeHistory());
-        $this->assertSame(OrderItemStatusEnum::PENDING, $this->orderItem->getStatus());
-    }
-
-    public function test_toString_returns_hotel_roomtype_and_date_range(): void
-    {
+        /*
+         * 使用具体类 Hotel 创建 mock 对象的原因：
+         * 1. Hotel 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getName() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $hotel = $this->createMock(Hotel::class);
         $hotel->method('getName')->willReturn('测试酒店');
 
+        /*
+         * 使用具体类 RoomType 创建 mock 对象的原因：
+         * 1. RoomType 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getName() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $roomType = $this->createMock(RoomType::class);
         $roomType->method('getName')->willReturn('标准间');
 
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-02');
 
-        $this->orderItem->setHotel($hotel)
-            ->setRoomType($roomType)
-            ->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut);
+        $orderItem = new OrderItem();
+        $orderItem->setHotel($hotel);
+        $orderItem->setRoomType($roomType);
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
 
-        $this->assertSame('测试酒店, 标准间, 2024-01-01 - 2024-01-02', $this->orderItem->__toString());
+        $this->assertSame('测试酒店, 标准间, 2024-01-01 - 2024-01-02', $orderItem->__toString());
     }
 
-    public function test_toString_with_unknown_hotel_and_roomtype(): void
+    public function testToStringWithUnknownHotelAndRoomtype(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-02');
 
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut);
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
 
-        $this->assertSame('Unknown, Unknown, 2024-01-01 - 2024-01-02', $this->orderItem->__toString());
+        $this->assertSame('Unknown, Unknown, 2024-01-01 - 2024-01-02', $orderItem->__toString());
     }
 
-    public function test_toString_without_dates(): void
+    public function testToStringWithoutDates(): void
     {
+        /*
+         * 使用具体类 Hotel 创建 mock 对象的原因：
+         * 1. Hotel 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getName() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $hotel = $this->createMock(Hotel::class);
         $hotel->method('getName')->willReturn('测试酒店');
 
-        $this->orderItem->setHotel($hotel);
+        $orderItem = new OrderItem();
+        $orderItem->setHotel($hotel);
 
-        $this->assertSame('测试酒店, Unknown, ', $this->orderItem->__toString());
+        $this->assertSame('测试酒店, Unknown, ', $orderItem->__toString());
     }
 
-    public function test_setOrder_with_valid_order(): void
+    public function testSetOrderWithValidOrder(): void
     {
         $order = new Order();
-        $result = $this->orderItem->setOrder($order);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($order, $this->orderItem->getOrder());
+        $orderItem = new OrderItem();
+        $orderItem->setOrder($order);
+        $this->assertSame($order, $orderItem->getOrder());
     }
 
-    public function test_setOrder_with_null(): void
+    public function testSetOrderWithNull(): void
     {
-        $result = $this->orderItem->setOrder(null);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertNull($this->orderItem->getOrder());
+        $orderItem = new OrderItem();
+        $orderItem->setOrder(null);
+        $this->assertNull($orderItem->getOrder());
     }
 
-    public function test_setHotel_with_valid_hotel(): void
+    public function testSetHotelWithValidHotel(): void
     {
+        /*
+         * 使用具体类 Hotel 创建 mock 对象的原因：
+         * 1. Hotel 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟基本的 setter/getter 行为，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $hotel = $this->createMock(Hotel::class);
-        $result = $this->orderItem->setHotel($hotel);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($hotel, $this->orderItem->getHotel());
+        $orderItem = new OrderItem();
+        $orderItem->setHotel($hotel);
+        $this->assertSame($hotel, $orderItem->getHotel());
     }
 
-    public function test_setRoomType_with_valid_roomtype(): void
+    public function testSetRoomTypeWithValidRoomtype(): void
     {
+        /*
+         * 使用具体类 RoomType 创建 mock 对象的原因：
+         * 1. RoomType 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟基本的 setter/getter 行为，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $roomType = $this->createMock(RoomType::class);
-        $result = $this->orderItem->setRoomType($roomType);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($roomType, $this->orderItem->getRoomType());
+        $orderItem = new OrderItem();
+        $orderItem->setRoomType($roomType);
+        $this->assertSame($roomType, $orderItem->getRoomType());
     }
 
-    public function test_setCheckInDate_calculates_amount(): void
+    public function testSetCheckInDateCalculatesAmount(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-03');
-        $this->orderItem->setCheckOutDate($checkOut)
-            ->setUnitPrice('100.00');
+        $orderItem = new OrderItem();
+        $orderItem->setCheckOutDate($checkOut);
+        $orderItem->setUnitPrice('100.00');
 
-        $result = $this->orderItem->setCheckInDate($checkIn);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($checkIn, $this->orderItem->getCheckInDate());
-        $this->assertSame('200.00', $this->orderItem->getAmount()); // 2 nights * 100
+        $orderItem->setCheckInDate($checkIn);
+        $this->assertSame($checkIn, $orderItem->getCheckInDate());
+        $this->assertSame('200.00', $orderItem->getAmount()); // 2 nights * 100
     }
 
-    public function test_setCheckOutDate_calculates_amount(): void
+    public function testSetCheckOutDateCalculatesAmount(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-04');
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setUnitPrice('50.00');
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setUnitPrice('50.00');
 
-        $result = $this->orderItem->setCheckOutDate($checkOut);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($checkOut, $this->orderItem->getCheckOutDate());
-        $this->assertSame('150.00', $this->orderItem->getAmount()); // 3 nights * 50
+        $orderItem->setCheckOutDate($checkOut);
+        $this->assertSame($checkOut, $orderItem->getCheckOutDate());
+        $this->assertSame('150.00', $orderItem->getAmount()); // 3 nights * 50
     }
 
-    public function test_setUnitPrice_calculates_amount(): void
+    public function testSetUnitPriceCalculatesAmount(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-03');
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut);
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
 
-        $result = $this->orderItem->setUnitPrice('75.50');
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame('75.50', $this->orderItem->getUnitPrice());
-        $this->assertSame('151.00', $this->orderItem->getAmount()); // 2 nights * 75.50
+        $orderItem->setUnitPrice('75.50');
+        $this->assertSame('75.50', $orderItem->getUnitPrice());
+        $this->assertSame('151.00', $orderItem->getAmount()); // 2 nights * 75.50
     }
 
-    public function test_setCostPrice_calculates_profit(): void
+    public function testSetCostPriceCalculatesProfit(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-03');
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut)
-            ->setUnitPrice('100.00');
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
+        $orderItem->setUnitPrice('100.00');
 
-        $result = $this->orderItem->setCostPrice('80.00');
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame('80.00', $this->orderItem->getCostPrice());
-        $this->assertSame('40.00', $this->orderItem->getProfit()); // (100-80) * 2 nights
+        $orderItem->setCostPrice('80.00');
+        $this->assertSame('80.00', $orderItem->getCostPrice());
+        $this->assertSame('40.00', $orderItem->getProfit()); // (100-80) * 2 nights
     }
 
-    public function test_setAmount_calculates_profit(): void
+    public function testSetAmountCalculatesProfit(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-03');
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut)
-            ->setCostPrice('60.00');
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
+        $orderItem->setCostPrice('60.00');
 
-        $result = $this->orderItem->setAmount('250.00');
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame('250.00', $this->orderItem->getAmount());
-        $this->assertSame('130.00', $this->orderItem->getProfit()); // 250 - (60 * 2 nights)
+        $orderItem->setAmount('250.00');
+        $this->assertSame('250.00', $orderItem->getAmount());
+        $this->assertSame('130.00', $orderItem->getProfit()); // 250 - (60 * 2 nights)
     }
 
-    public function test_setContract_with_valid_contract(): void
+    public function testSetContractWithValidContract(): void
     {
+        /*
+         * 使用具体类 HotelContract 创建 mock 对象的原因：
+         * 1. HotelContract 是来自 hotel-contract-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟基本的 setter/getter 行为，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $contract = $this->createMock(HotelContract::class);
-        $result = $this->orderItem->setContract($contract);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($contract, $this->orderItem->getContract());
+        $orderItem = new OrderItem();
+        $orderItem->setContract($contract);
+        $this->assertSame($contract, $orderItem->getContract());
     }
 
-    public function test_setDailyInventory_with_valid_inventory(): void
+    public function testSetDailyInventoryWithValidInventory(): void
     {
+        /*
+         * 使用具体类 DailyInventory 创建 mock 对象的原因：
+         * 1. DailyInventory 是来自 hotel-contract-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟基本的 setter/getter 行为，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $inventory = $this->createMock(DailyInventory::class);
-        $result = $this->orderItem->setDailyInventory($inventory);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($inventory, $this->orderItem->getDailyInventory());
+        $orderItem = new OrderItem();
+        $orderItem->setDailyInventory($inventory);
+        $this->assertSame($inventory, $orderItem->getDailyInventory());
     }
 
-    public function test_setStatus_with_valid_status(): void
+    public function testSetStatusWithValidStatus(): void
     {
-        $result = $this->orderItem->setStatus(OrderItemStatusEnum::CONFIRMED);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame(OrderItemStatusEnum::CONFIRMED, $this->orderItem->getStatus());
+        $orderItem = new OrderItem();
+        $orderItem->setStatus(OrderItemStatusEnum::CONFIRMED);
+        $this->assertSame(OrderItemStatusEnum::CONFIRMED, $orderItem->getStatus());
     }
 
-    public function test_setContractChangeHistory_with_valid_history(): void
+    public function testSetContractChangeHistoryWithValidHistory(): void
     {
         $history = [['timestamp' => '2024-01-01', 'action' => 'change']];
-        $result = $this->orderItem->setContractChangeHistory($history);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($history, $this->orderItem->getContractChangeHistory());
+        $orderItem = new OrderItem();
+        $orderItem->setContractChangeHistory($history);
+        $this->assertSame($history, $orderItem->getContractChangeHistory());
     }
 
-    public function test_setContractChangeHistory_with_null(): void
+    public function testSetContractChangeHistoryWithNull(): void
     {
-        $result = $this->orderItem->setContractChangeHistory(null);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertNull($this->orderItem->getContractChangeHistory());
+        $orderItem = new OrderItem();
+        $orderItem->setContractChangeHistory(null);
+        $this->assertNull($orderItem->getContractChangeHistory());
     }
 
-    public function test_setContractChangeReason_with_valid_reason(): void
+    public function testSetContractChangeReasonWithValidReason(): void
     {
-        $result = $this->orderItem->setContractChangeReason('合同价格调整');
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame('合同价格调整', $this->orderItem->getContractChangeReason());
+        $orderItem = new OrderItem();
+        $orderItem->setContractChangeReason('合同价格调整');
+        $this->assertSame('合同价格调整', $orderItem->getContractChangeReason());
     }
 
-    public function test_setLastModifiedBy_with_user_id(): void
+    public function testSetLastModifiedByWithUserId(): void
     {
-        $result = $this->orderItem->setLastModifiedBy(123);
-
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame(123, $this->orderItem->getLastModifiedBy());
+        $orderItem = new OrderItem();
+        $orderItem->setLastModifiedBy(123);
+        $this->assertSame(123, $orderItem->getLastModifiedBy());
     }
 
-    public function test_changeContract_records_change_history(): void
+    public function testChangeContractRecordsChangeHistory(): void
     {
+        /*
+         * 使用具体类 HotelContract 创建 mock 对象的原因：
+         * 1. HotelContract 是来自 hotel-contract-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getId() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $oldContract = $this->createMock(HotelContract::class);
         $oldContract->method('getId')->willReturn(1);
 
+        /*
+         * 使用具体类 HotelContract 创建 mock 对象的原因：
+         * 1. HotelContract 是来自 hotel-contract-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getId() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $newContract = $this->createMock(HotelContract::class);
         $newContract->method('getId')->willReturn(2);
 
-        $this->orderItem->setContract($oldContract);
+        $orderItem = new OrderItem();
+        $orderItem->setContract($oldContract);
 
-        $result = $this->orderItem->changeContract($newContract, '价格调整', 123);
+        $result = $orderItem->changeContract($newContract, '价格调整', 123);
 
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame($newContract, $this->orderItem->getContract());
-        $this->assertSame('价格调整', $this->orderItem->getContractChangeReason());
-        $this->assertSame(123, $this->orderItem->getLastModifiedBy());
+        $this->assertSame($orderItem, $result);
+        $this->assertSame($newContract, $orderItem->getContract());
+        $this->assertSame('价格调整', $orderItem->getContractChangeReason());
+        $this->assertSame(123, $orderItem->getLastModifiedBy());
 
-        $history = $this->orderItem->getContractChangeHistory();
+        $history = $orderItem->getContractChangeHistory();
+        $this->assertIsArray($history);
         $this->assertCount(1, $history);
+        $this->assertArrayHasKey(0, $history);
         $this->assertSame(1, $history[0]['oldContractId']);
         $this->assertSame(2, $history[0]['newContractId']);
         $this->assertSame('价格调整', $history[0]['reason']);
         $this->assertSame(123, $history[0]['operatorId']);
     }
 
-    public function test_changeContract_with_null_old_contract(): void
+    public function testChangeContractWithNullOldContract(): void
     {
+        /*
+         * 使用具体类 HotelContract 创建 mock 对象的原因：
+         * 1. HotelContract 是来自 hotel-contract-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getId() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $newContract = $this->createMock(HotelContract::class);
         $newContract->method('getId')->willReturn(2);
 
-        $this->orderItem->changeContract($newContract, '初次分配', 123);
+        $orderItem = new OrderItem();
+        $orderItem->changeContract($newContract, '初次分配', 123);
 
-        $history = $this->orderItem->getContractChangeHistory();
+        $history = $orderItem->getContractChangeHistory();
+        $this->assertIsArray($history);
+        $this->assertArrayHasKey(0, $history);
         $this->assertNull($history[0]['oldContractId']);
         $this->assertSame(2, $history[0]['newContractId']);
     }
 
-    public function test_cancel_updates_status(): void
+    public function testCancelUpdatesStatus(): void
     {
-        $result = $this->orderItem->cancel();
+        $orderItem = new OrderItem();
+        $result = $orderItem->cancel();
 
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame(OrderItemStatusEnum::CANCELED, $this->orderItem->getStatus());
+        $this->assertSame($orderItem, $result);
+        $this->assertSame(OrderItemStatusEnum::CANCELED, $orderItem->getStatus());
     }
 
-    public function test_confirm_updates_status(): void
+    public function testConfirmUpdatesStatus(): void
     {
-        $result = $this->orderItem->confirm();
+        $orderItem = new OrderItem();
+        $result = $orderItem->confirm();
 
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame(OrderItemStatusEnum::CONFIRMED, $this->orderItem->getStatus());
+        $this->assertSame($orderItem, $result);
+        $this->assertSame(OrderItemStatusEnum::CONFIRMED, $orderItem->getStatus());
     }
 
-    public function test_complete_updates_status(): void
+    public function testCompleteUpdatesStatus(): void
     {
-        $result = $this->orderItem->complete();
+        $orderItem = new OrderItem();
+        $result = $orderItem->complete();
 
-        $this->assertSame($this->orderItem, $result);
-        $this->assertSame(OrderItemStatusEnum::COMPLETED, $this->orderItem->getStatus());
+        $this->assertSame($orderItem, $result);
+        $this->assertSame(OrderItemStatusEnum::COMPLETED, $orderItem->getStatus());
     }
 
-    public function test_setCreateTime_sets_time(): void
-    {
-        $time = new \DateTimeImmutable();
-
-        $this->orderItem->setCreateTime($time);
-
-        $this->assertSame($time, $this->orderItem->getCreateTime());
-    }
-
-    public function test_setUpdateTime_sets_time(): void
+    public function testSetCreateTimeSetsTime(): void
     {
         $time = new \DateTimeImmutable();
+        $orderItem = new OrderItem();
+        $orderItem->setCreateTime($time);
 
-        $this->orderItem->setUpdateTime($time);
-
-        $this->assertSame($time, $this->orderItem->getUpdateTime());
+        $this->assertSame($time, $orderItem->getCreateTime());
     }
 
-    public function test_amount_calculation_with_zero_nights(): void
+    public function testSetUpdateTimeSetsTime(): void
+    {
+        $time = new \DateTimeImmutable();
+        $orderItem = new OrderItem();
+        $orderItem->setUpdateTime($time);
+
+        $this->assertSame($time, $orderItem->getUpdateTime());
+    }
+
+    public function testAmountCalculationWithZeroNights(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-01'); // 同一天
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut)
-            ->setUnitPrice('100.00');
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
+        $orderItem->setUnitPrice('100.00');
 
-        $this->assertSame('0.00', $this->orderItem->getAmount());
+        $this->assertSame('0.00', $orderItem->getAmount());
     }
 
-    public function test_profit_calculation_with_zero_cost(): void
+    public function testProfitCalculationWithZeroCost(): void
     {
         $checkIn = new \DateTimeImmutable('2024-01-01');
         $checkOut = new \DateTimeImmutable('2024-01-03');
-        $this->orderItem->setCheckInDate($checkIn)
-            ->setCheckOutDate($checkOut)
-            ->setUnitPrice('100.00')
-            ->setCostPrice('0.00');
+        $orderItem = new OrderItem();
+        $orderItem->setCheckInDate($checkIn);
+        $orderItem->setCheckOutDate($checkOut);
+        $orderItem->setUnitPrice('100.00');
+        $orderItem->setCostPrice('0.00');
 
-        $this->assertSame('200.00', $this->orderItem->getProfit());
+        $this->assertSame('200.00', $orderItem->getProfit());
     }
 
-    public function test_default_values(): void
+    public static function propertiesProvider(): iterable
     {
-        $this->assertNull($this->orderItem->getId());
-        $this->assertNull($this->orderItem->getOrder());
-        $this->assertNull($this->orderItem->getHotel());
-        $this->assertNull($this->orderItem->getRoomType());
-        $this->assertNull($this->orderItem->getCheckInDate());
-        $this->assertNull($this->orderItem->getCheckOutDate());
-        $this->assertSame('0.00', $this->orderItem->getUnitPrice());
-        $this->assertSame('0.00', $this->orderItem->getCostPrice());
-        $this->assertSame('0.00', $this->orderItem->getAmount());
-        $this->assertSame('0.00', $this->orderItem->getProfit());
-        $this->assertNull($this->orderItem->getContract());
-        $this->assertNull($this->orderItem->getDailyInventory());
-        $this->assertSame(OrderItemStatusEnum::PENDING, $this->orderItem->getStatus());
-        $this->assertSame([], $this->orderItem->getContractChangeHistory());
-        $this->assertNull($this->orderItem->getContractChangeReason());
-        $this->assertNull($this->orderItem->getCreateTime());
-        $this->assertNull($this->orderItem->getUpdateTime());
-        $this->assertNull($this->orderItem->getLastModifiedBy());
+        $order = new Order();
+        $order->setOrderNo('ORD20250101001');
+        $order->setCreatedBy('123');
+
+        $hotel = new Hotel();
+        $hotel->setName('测试酒店');
+
+        $roomType = new RoomType();
+        $roomType->setName('标准间');
+
+        $checkIn = new \DateTimeImmutable('2025-01-01');
+        $checkOut = new \DateTimeImmutable('2025-01-03');
+
+        yield 'pending_item' => ['order', $order];
+        yield 'confirmed_item' => ['hotel', $hotel];
+        yield 'completed_item' => ['roomType', $roomType];
+        yield 'canceled_item' => ['status', OrderItemStatusEnum::CANCELED];
+    }
+
+    protected function createEntity(): object
+    {
+        return new OrderItem();
     }
 }

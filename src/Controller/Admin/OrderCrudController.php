@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
 use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminCrud;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -11,6 +14,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use EasyCorp\Bundle\EasyAdminBundle\Contracts\Field\FieldInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
@@ -26,8 +30,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\Form\Extension\Core\Type\EnumType;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\AuditStatusEnum;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
@@ -37,12 +43,15 @@ use Tourze\HotelAgentBundle\Repository\OrderItemRepository;
 use Tourze\HotelAgentBundle\Service\OrderCreationService;
 use Tourze\HotelAgentBundle\Service\OrderImportService;
 use Tourze\HotelAgentBundle\Service\OrderStatusService;
-use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
+use Tourze\HotelProfileBundle\Enum\RoomTypeStatusEnum;
+use Tourze\HotelProfileBundle\Service\RoomTypeService;
 
 /**
  * 订单管理控制器
+ * @extends AbstractCrudController<Order>
  */
-class OrderCrudController extends AbstractCrudController
+#[AdminCrud(routePath: '/hotel-agent/order', routeName: 'hotel_agent_order')]
+final class OrderCrudController extends AbstractCrudController
 {
     public function __construct(
         private readonly OrderStatusService $orderStatusService,
@@ -50,9 +59,10 @@ class OrderCrudController extends AbstractCrudController
         private readonly OrderCreationService $orderCreationService,
         private readonly AgentRepository $agentRepository,
         private readonly OrderItemRepository $orderItemRepository,
-        private readonly RoomTypeRepository $roomTypeRepository,
+        private readonly RoomTypeService $roomTypeService,
         private readonly AdminUrlGenerator $adminUrlGenerator,
-    ) {}
+    ) {
+    }
 
     public static function getEntityFqcn(): string
     {
@@ -70,7 +80,8 @@ class OrderCrudController extends AbstractCrudController
             ->showEntityActionsInlined()
             ->setFormOptions([
                 'validation_groups' => ['Default'],
-            ]);
+            ])
+        ;
     }
 
     public function configureActions(Actions $actions): Actions
@@ -79,9 +90,10 @@ class OrderCrudController extends AbstractCrudController
         $confirmAction = Action::new('confirm', '确认', 'fa fa-check')
             ->linkToCrudAction('confirmOrder')
             ->displayIf(static function (Order $order): bool {
-                return $order->getStatus() === OrderStatusEnum::PENDING;
+                return OrderStatusEnum::PENDING === $order->getStatus();
             })
-            ->addCssClass('btn btn-success btn-sm');
+            ->addCssClass('btn btn-success btn-sm')
+        ;
 
         // 取消订单操作
         $cancelAction = Action::new('cancel', '取消', 'fa fa-times')
@@ -89,27 +101,31 @@ class OrderCrudController extends AbstractCrudController
             ->displayIf(static function (Order $order): bool {
                 return in_array($order->getStatus(), [OrderStatusEnum::PENDING, OrderStatusEnum::CONFIRMED], true);
             })
-            ->addCssClass('btn btn-danger btn-sm');
+            ->addCssClass('btn btn-danger btn-sm')
+        ;
 
         // 关闭订单操作
         $closeAction = Action::new('close', '关闭', 'fa fa-ban')
             ->linkToCrudAction('closeOrder')
             ->displayIf(static function (Order $order): bool {
-                return $order->getStatus() === OrderStatusEnum::CONFIRMED;
+                return OrderStatusEnum::CONFIRMED === $order->getStatus();
             })
-            ->addCssClass('btn btn-warning btn-sm');
+            ->addCssClass('btn btn-warning btn-sm')
+        ;
 
         // Excel导入操作
         $importAction = Action::new('import', 'Excel导入', 'fa fa-upload')
             ->linkToCrudAction('importOrders')
             ->createAsGlobalAction()
-            ->addCssClass('btn btn-primary');
+            ->addCssClass('btn btn-primary')
+        ;
 
         // 新建订单操作
         $newOrderAction = Action::new('newOrder', '新建订单', 'fa fa-plus')
             ->linkToCrudAction('newOrder')
             ->createAsGlobalAction()
-            ->addCssClass('btn btn-success');
+            ->addCssClass('btn btn-success')
+        ;
 
         return $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
@@ -118,16 +134,8 @@ class OrderCrudController extends AbstractCrudController
             ->add(Crud::PAGE_INDEX, $closeAction)
             ->add(Crud::PAGE_INDEX, $importAction)
             ->add(Crud::PAGE_INDEX, $newOrderAction)
-            ->remove(Crud::PAGE_INDEX, Action::NEW)
-            ->remove(Crud::PAGE_INDEX, Action::DELETE)
             ->setPermission(Action::DELETE, 'ROLE_SUPER_ADMIN')
-            ->reorder(Crud::PAGE_INDEX, [
-                Action::DETAIL,
-                'confirm',
-                'cancel',
-                'close',
-                Action::EDIT
-            ]);
+        ;
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -163,19 +171,31 @@ class OrderCrudController extends AbstractCrudController
     {
         yield IntegerField::new('id', 'ID')->onlyOnIndex();
 
+        yield from $this->getBasicFields($pageName);
+        yield from $this->getStatusFields($pageName);
+        yield from $this->getDetailFields($pageName);
+    }
+
+    /**
+     * @return iterable<FieldInterface>
+     */
+    private function getBasicFields(string $pageName): iterable
+    {
         // 订单编号 - 创建时自动生成，编辑时只读
         yield TextField::new('orderNo', '订单编号')
             ->setColumns(3)
             ->setFormTypeOptions(['attr' => ['readonly' => true]])
-            ->hideWhenCreating();
+            ->hideWhenCreating()
+        ;
 
         // 代理商 - 必选
         yield AssociationField::new('agent', '代理商')
             ->setColumns(4)
             ->setRequired(true)
-            ->formatValue(function ($value) {
-                return $value?->getCompanyName();
-            });
+            ->formatValue(function (?Agent $value): string {
+                return $value?->getCompanyName() ?? '';
+            })
+        ;
 
         // 订单来源
         yield ChoiceField::new('source', '订单来源')
@@ -186,15 +206,30 @@ class OrderCrudController extends AbstractCrudController
                 return $value instanceof OrderSourceEnum ? $value->getLabel() : '';
             })
             ->hideOnIndex()
-            ->setRequired(true);
+            ->setRequired(true)
+        ;
 
         // 订单总金额 - 编辑时显示，创建时自动计算
         yield MoneyField::new('totalAmount', '订单总金额')
             ->setColumns(3)
             ->setCurrency('CNY')
             ->setStoredAsCents(false)
-            ->hideWhenCreating();
+            ->hideWhenCreating()
+        ;
 
+        // 订单备注
+        yield TextareaField::new('remark', '订单备注')
+            ->setColumns(6)
+            ->hideOnIndex()
+            ->setFormTypeOptions(['attr' => ['rows' => 3]])
+        ;
+    }
+
+    /**
+     * @return iterable<FieldInterface>
+     */
+    private function getStatusFields(string $pageName): iterable
+    {
         // 订单状态
         yield ChoiceField::new('status', '订单状态')
             ->setColumns(2)
@@ -207,9 +242,10 @@ class OrderCrudController extends AbstractCrudController
                 'pending' => 'warning',
                 'confirmed' => 'success',
                 'canceled' => 'danger',
-                'closed' => 'secondary'
+                'closed' => 'secondary',
             ])
-            ->hideWhenCreating(); // 创建时默认为 pending
+            ->hideWhenCreating() // 创建时默认为 pending
+        ;
 
         // 审核状态
         yield ChoiceField::new('auditStatus', '审核状态')
@@ -222,58 +258,77 @@ class OrderCrudController extends AbstractCrudController
             ->renderAsBadges([
                 'approved' => 'success',
                 'rejected' => 'danger',
-                'pending' => 'warning'
+                'pending' => 'warning',
             ])
             ->hideOnIndex()
-            ->hideWhenCreating(); // 创建时默认为 pending
+            ->hideWhenCreating() // 创建时默认为 pending
+        ;
+    }
 
-        // 订单备注
-        yield TextareaField::new('remark', '订单备注')
+    /**
+     * @return iterable<FieldInterface>
+     */
+    private function getDetailFields(string $pageName): iterable
+    {
+        // 只在详情和编辑页面显示的字段
+        if (!in_array($pageName, [Crud::PAGE_DETAIL, Crud::PAGE_EDIT], true)) {
+            return;
+        }
+
+        yield TextareaField::new('cancelReason', '取消原因')
             ->setColumns(6)
             ->hideOnIndex()
-            ->setFormTypeOptions(['attr' => ['rows' => 3]]);
+            ->setFormTypeOptions(['attr' => ['rows' => 2]])
+            ->hideWhenUpdating()
+        ;
 
-        // 只在详情和编辑页面显示的字段
-        if (in_array($pageName, [Crud::PAGE_DETAIL, Crud::PAGE_EDIT], true)) {
-            yield TextareaField::new('cancelReason', '取消原因')
-                ->setColumns(6)
-                ->hideOnIndex()
-                ->setFormTypeOptions(['attr' => ['rows' => 2]])
-                ->hideWhenUpdating();
+        yield DateTimeField::new('createTime', '创建时间')
+            ->setColumns(3)
+            ->setFormat('yyyy-MM-dd HH:mm:ss')
+            ->hideWhenUpdating()
+        ;
 
-            yield DateTimeField::new('createTime', '创建时间')
-                ->setColumns(3)
-                ->setFormat('yyyy-MM-dd HH:mm:ss')
-                ->hideWhenUpdating();
+        yield DateTimeField::new('cancelTime', '取消时间')
+            ->setColumns(3)
+            ->setFormat('yyyy-MM-dd HH:mm:ss')
+            ->hideWhenUpdating()
+        ;
 
-            yield DateTimeField::new('cancelTime', '取消时间')
-                ->setColumns(3)
-                ->setFormat('yyyy-MM-dd HH:mm:ss')
-                ->hideWhenUpdating();
+        yield AssociationField::new('orderItems', '订单项')
+            ->setTemplatePath('@HotelAgent/admin/order_items.html.twig')
+            ->formatValue(function ($value, $entity) {
+                return $this->loadOrderItemsWithRelations($value, $entity);
+            })
+            ->hideWhenUpdating()
+        ;
+    }
 
-            yield AssociationField::new('orderItems', '订单项')
-                ->setTemplatePath('@HotelAgent/admin/order_items.html.twig')
-                ->formatValue(function ($value, $entity) {
-                    // 预加载关联数据避免N+1查询
-                    if ($entity instanceof Order && $value) {
-                        $this->orderItemRepository
-                            ->createQueryBuilder('oi')
-                            ->select('oi', 'h', 'rt', 'di', 'c')
-                            ->leftJoin('oi.hotel', 'h')
-                            ->leftJoin('oi.roomType', 'rt')
-                            ->leftJoin('oi.dailyInventory', 'di')
-                            ->leftJoin('di.contract', 'c')
-                            ->where('oi.order = :order')
-                            ->setParameter('order', $entity)
-                            ->orderBy('oi.checkInDate', 'ASC')
-                            ->addOrderBy('oi.id', 'ASC')
-                            ->getQuery()
-                            ->getResult();
-                    }
-                    return $value;
-                })
-                ->hideWhenUpdating();
+    /**
+     * @param mixed $value
+     * @param mixed $entity
+     * @return mixed
+     */
+    private function loadOrderItemsWithRelations($value, $entity)
+    {
+        // 预加载关联数据避免N+1查询
+        if ($entity instanceof Order && null !== $value) {
+            $this->orderItemRepository
+                ->createQueryBuilder('oi')
+                ->select('oi', 'h', 'rt', 'di', 'c')
+                ->leftJoin('oi.hotel', 'h')
+                ->leftJoin('oi.roomType', 'rt')
+                ->leftJoin('oi.dailyInventory', 'di')
+                ->leftJoin('di.contract', 'c')
+                ->where('oi.order = :order')
+                ->setParameter('order', $entity)
+                ->orderBy('oi.checkInDate', 'ASC')
+                ->addOrderBy('oi.id', 'ASC')
+                ->getQuery()
+                ->getResult()
+            ;
         }
+
+        return $value;
     }
 
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
@@ -284,7 +339,8 @@ class OrderCrudController extends AbstractCrudController
         $queryBuilder
             ->addOrderBy('entity.createTime', 'DESC')
             ->leftJoin('entity.agent', 'agent')
-            ->addSelect('agent');
+            ->addSelect('agent')
+        ;
 
         return $queryBuilder;
     }
@@ -292,14 +348,15 @@ class OrderCrudController extends AbstractCrudController
     /**
      * 确认订单
      */
-    #[AdminAction(routeName: 'confirm')]
+    #[AdminAction(routeName: 'confirm', routePath: '/admin/orders/{entityId}/confirm')]
     public function confirmOrder(AdminContext $context): Response
     {
         $order = $context->getEntity()->getInstance();
         assert($order instanceof Order);
 
-        if ($order->getStatus() !== OrderStatusEnum::PENDING) {
+        if (OrderStatusEnum::PENDING !== $order->getStatus()) {
             $this->addFlash('danger', '只有待确认状态的订单才能确认');
+
             return $this->redirect($this->adminUrlGenerator
                 ->setController(self::class)
                 ->setAction(Action::INDEX)
@@ -308,7 +365,7 @@ class OrderCrudController extends AbstractCrudController
 
         try {
             $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
-            $this->orderStatusService->confirmOrder($order, (int)$userId);
+            $this->orderStatusService->confirmOrder($order, (int) $userId);
 
             $this->addFlash('success', '订单确认成功');
         } catch (\Throwable $e) {
@@ -324,38 +381,20 @@ class OrderCrudController extends AbstractCrudController
     /**
      * 取消订单
      */
-    #[AdminAction(routeName: 'cancel')]
+    #[AdminAction(routeName: 'cancel', routePath: '/admin/orders/{entityId}/cancel')]
     public function cancelOrder(Request $request, AdminContext $context): Response
     {
         $order = $context->getEntity()->getInstance();
         assert($order instanceof Order);
 
-        if (!in_array($order->getStatus(), [OrderStatusEnum::PENDING, OrderStatusEnum::CONFIRMED], true)) {
+        if (!$this->canCancelOrder($order)) {
             $this->addFlash('danger', '订单状态不允许取消');
-            return $this->redirect($this->adminUrlGenerator
-                ->setController(self::class)
-                ->setAction(Action::INDEX)
-                ->generateUrl());
+
+            return $this->redirectToIndex();
         }
 
         if ($request->isMethod('POST')) {
-            $reason = $request->request->get('reason', '');
-            if (empty($reason)) {
-                $this->addFlash('danger', '请输入取消原因');
-            } else {
-                try {
-                    $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
-                    $this->orderStatusService->cancelOrder($order, $reason, (int)$userId);
-
-                    $this->addFlash('success', '订单取消成功');
-                    return $this->redirect($this->adminUrlGenerator
-                        ->setController(self::class)
-                        ->setAction(Action::INDEX)
-                        ->generateUrl());
-                } catch (\Throwable $e) {
-                    $this->addFlash('danger', '订单取消失败：' . $e->getMessage());
-                }
-            }
+            return $this->handleCancelOrderPost($request, $order);
         }
 
         return $this->render('@HotelAgent/admin/order_cancel.html.twig', [
@@ -363,41 +402,56 @@ class OrderCrudController extends AbstractCrudController
         ]);
     }
 
+    private function canCancelOrder(Order $order): bool
+    {
+        return in_array($order->getStatus(), [OrderStatusEnum::PENDING, OrderStatusEnum::CONFIRMED], true);
+    }
+
+    private function handleCancelOrderPost(Request $request, Order $order): Response
+    {
+        $reason = $request->request->get('reason', '');
+        assert(is_string($reason));
+
+        if ('' === $reason) {
+            $this->addFlash('danger', '请输入取消原因');
+
+            return $this->render('@HotelAgent/admin/order_cancel.html.twig', [
+                'order' => $order,
+            ]);
+        }
+
+        try {
+            $userId = $this->getCurrentUserId();
+            $this->orderStatusService->cancelOrder($order, $reason, $userId);
+            $this->addFlash('success', '订单取消成功');
+
+            return $this->redirectToIndex();
+        } catch (\Throwable $e) {
+            $this->addFlash('danger', '订单取消失败：' . $e->getMessage());
+
+            return $this->render('@HotelAgent/admin/order_cancel.html.twig', [
+                'order' => $order,
+            ]);
+        }
+    }
+
     /**
      * 关闭订单
      */
-    #[AdminAction(routeName: 'close')]
+    #[AdminAction(routeName: 'close', routePath: '/admin/orders/{entityId}/close')]
     public function closeOrder(Request $request, AdminContext $context): Response
     {
         $order = $context->getEntity()->getInstance();
         assert($order instanceof Order);
 
-        if ($order->getStatus() !== OrderStatusEnum::CONFIRMED) {
+        if (!$this->canCloseOrder($order)) {
             $this->addFlash('danger', '只有已确认状态的订单才能关闭');
-            return $this->redirect($this->adminUrlGenerator
-                ->setController(self::class)
-                ->setAction(Action::INDEX)
-                ->generateUrl());
+
+            return $this->redirectToIndex();
         }
 
         if ($request->isMethod('POST')) {
-            $reason = $request->request->get('reason', '');
-            if (empty($reason)) {
-                $this->addFlash('danger', '请输入关闭原因');
-            } else {
-                try {
-                    $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
-                    $this->orderStatusService->closeOrder($order, $reason, (int)$userId);
-
-                    $this->addFlash('success', '订单关闭成功');
-                    return $this->redirect($this->adminUrlGenerator
-                        ->setController(self::class)
-                        ->setAction(Action::INDEX)
-                        ->generateUrl());
-                } catch (\Throwable $e) {
-                    $this->addFlash('danger', '订单关闭失败：' . $e->getMessage());
-                }
-            }
+            return $this->handleCloseOrderPost($request, $order);
         }
 
         return $this->render('@HotelAgent/admin/order_close.html.twig', [
@@ -405,79 +459,150 @@ class OrderCrudController extends AbstractCrudController
         ]);
     }
 
+    private function canCloseOrder(Order $order): bool
+    {
+        return OrderStatusEnum::CONFIRMED === $order->getStatus();
+    }
+
+    private function handleCloseOrderPost(Request $request, Order $order): Response
+    {
+        $reason = $request->request->get('reason', '');
+        assert(is_string($reason));
+
+        if ('' === $reason) {
+            $this->addFlash('danger', '请输入关闭原因');
+
+            return $this->render('@HotelAgent/admin/order_close.html.twig', [
+                'order' => $order,
+            ]);
+        }
+
+        try {
+            $userId = $this->getCurrentUserId();
+            $this->orderStatusService->closeOrder($order, $reason, $userId);
+            $this->addFlash('success', '订单关闭成功');
+
+            return $this->redirectToIndex();
+        } catch (\Throwable $e) {
+            $this->addFlash('danger', '订单关闭失败：' . $e->getMessage());
+
+            return $this->render('@HotelAgent/admin/order_close.html.twig', [
+                'order' => $order,
+            ]);
+        }
+    }
+
     /**
      * Excel导入订单
      */
-    #[AdminAction(routeName: 'admin_order_import')]
+    #[AdminAction(routeName: 'admin_order_import', routePath: '/admin/orders/import')]
     public function importOrders(Request $request): Response
     {
         if ($request->isMethod('POST')) {
-            $uploadedFile = $request->files->get('import_file');
-
-            if (null === $uploadedFile) {
-                $this->addFlash('danger', '请选择要导入的Excel文件');
-            } else {
-                try {
-                    $userId = null !== $this->getUser() ? $this->getUser()->getUserIdentifier() : '0';
-                    $result = $this->orderImportService->importFromExcel($uploadedFile, (int)$userId);
-
-                    $this->addFlash('success', sprintf('成功导入 %d 个订单', $result['success_count']));
-
-                    if ($result['error_count'] > 0) {
-                        $this->addFlash('warning', sprintf('有 %d 个订单导入失败', $result['error_count']));
-                    }
-
-                    return $this->redirect($this->adminUrlGenerator
-                        ->setController(self::class)
-                        ->setAction(Action::INDEX)
-                        ->generateUrl());
-                } catch (\Throwable $e) {
-                    $this->addFlash('danger', '导入失败：' . $e->getMessage());
-                }
-            }
+            return $this->handleImportOrdersPost($request);
         }
 
         return $this->render('@HotelAgent/admin/order_import.html.twig');
     }
 
+    private function handleImportOrdersPost(Request $request): Response
+    {
+        $uploadedFile = $request->files->get('import_file');
+
+        if (!$uploadedFile instanceof UploadedFile) {
+            $this->addFlash('danger', '请选择要导入的Excel文件');
+
+            return $this->render('@HotelAgent/admin/order_import.html.twig');
+        }
+
+        try {
+            $userId = $this->getCurrentUserId();
+            $result = $this->orderImportService->importFromExcel($uploadedFile, $userId);
+
+            $successCount = isset($result['success_count']) && is_numeric($result['success_count']) ? (int) $result['success_count'] : 0;
+            $errorCount = isset($result['error_count']) && is_numeric($result['error_count']) ? (int) $result['error_count'] : 0;
+
+            $this->addFlash('success', sprintf('成功导入 %d 个订单', $successCount));
+
+            if ($errorCount > 0) {
+                $this->addFlash('warning', sprintf('有 %d 个订单导入失败', $errorCount));
+            }
+
+            return $this->redirectToIndex();
+        } catch (\Throwable $e) {
+            $this->addFlash('danger', '导入失败：' . $e->getMessage());
+
+            return $this->render('@HotelAgent/admin/order_import.html.twig');
+        }
+    }
+
     /**
      * 新建订单
      */
-    #[AdminAction(routeName: 'admin_order_new')]
+    #[AdminAction(routeName: 'admin_order_new', routePath: '/admin/orders/new')]
     public function newOrder(Request $request): Response
     {
         if ($request->isMethod('POST')) {
-            try {
-                $formData = $request->request->all();
-                $order = $this->orderCreationService->createOrderWithItems($formData);
-
-                $this->addFlash('success', '订单创建成功');
-                return $this->redirect($this->adminUrlGenerator
-                    ->setController(self::class)
-                    ->setAction(Action::INDEX)
-                    ->generateUrl());
-            } catch (\Throwable $e) {
-                $this->addFlash('danger', '订单创建失败：' . $e->getMessage());
-
-                // 如果是库存被占用的错误，给出更具体的提示
-                if (str_contains($e->getMessage(), '库存已被占用')) {
-                    $this->addFlash('warning', '所选库存可能已被其他订单占用，请重新选择库存');
-                }
-            }
+            return $this->handleNewOrderPost($request);
         }
 
+        return $this->renderNewOrderForm();
+    }
+
+    private function handleNewOrderPost(Request $request): Response
+    {
+        try {
+            $formData = $request->request->all();
+
+            // 确保formData是string=>mixed的数组
+            $typedFormData = [];
+            foreach ($formData as $key => $value) {
+                $typedFormData[(string) $key] = $value;
+            }
+
+            $order = $this->orderCreationService->createOrderWithItems($typedFormData);
+
+            $this->addFlash('success', '订单创建成功');
+
+            return $this->redirectToIndex();
+        } catch (\Throwable $e) {
+            $this->addFlash('danger', '订单创建失败：' . $e->getMessage());
+
+            // 如果是库存被占用的错误，给出更具体的提示
+            if (str_contains($e->getMessage(), '库存已被占用')) {
+                $this->addFlash('warning', '所选库存可能已被其他订单占用，请重新选择库存');
+            }
+
+            return $this->renderNewOrderForm();
+        }
+    }
+
+    private function renderNewOrderForm(): Response
+    {
         // 获取代理商列表
         $agents = $this->agentRepository->findAll();
 
         // 获取房型列表
-        $roomTypes = $this->roomTypeRepository->findBy(
-            ['status' => \Tourze\HotelProfileBundle\Enum\RoomTypeStatusEnum::ACTIVE],
-            ['hotel' => 'ASC', 'name' => 'ASC']
+        $roomTypes = $this->roomTypeService->findRoomTypesByStatus(
+            RoomTypeStatusEnum::ACTIVE
         );
 
         return $this->render('@HotelAgent/admin/order_new.html.twig', [
             'agents' => $agents,
             'roomTypes' => $roomTypes,
         ]);
+    }
+
+    private function getCurrentUserId(): int
+    {
+        return null !== $this->getUser() ? (int) $this->getUser()->getUserIdentifier() : 0;
+    }
+
+    private function redirectToIndex(): Response
+    {
+        return $this->redirect($this->adminUrlGenerator
+            ->setController(self::class)
+            ->setAction(Action::INDEX)
+            ->generateUrl());
     }
 }

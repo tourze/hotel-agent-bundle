@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -27,7 +29,7 @@ enum PaymentMethodEnum: string implements Labelable, Itemable, Selectable
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::BANK_TRANSFER => '银行转账',
             self::ALIPAY => '支付宝',
             self::WECHAT => '微信支付',
@@ -38,4 +40,8 @@ enum PaymentMethodEnum: string implements Labelable, Itemable, Selectable
             self::MONTHLY_SETTLEMENT => '月结',
         };
     }
+
+    /**
+     * 生成枚举下拉选项
+     */
 }

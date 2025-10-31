@@ -1,17 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
 use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
-use Tourze\HotelAgentBundle\Exception\AgentBillException;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Enum\SettlementTypeEnum;
+use Tourze\HotelAgentBundle\Exception\AgentBillException;
 use Tourze\HotelAgentBundle\Repository\AgentBillRepository;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
 use Tourze\HotelAgentBundle\Repository\OrderRepository;
@@ -19,19 +22,22 @@ use Tourze\HotelAgentBundle\Repository\OrderRepository;
 /**
  * 代理账单服务
  */
-class AgentBillService
+#[WithMonologChannel(channel: 'hotel_agent')]
+readonly class AgentBillService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly AgentBillRepository $agentBillRepository,
-        private readonly OrderRepository $orderRepository,
-        private readonly AgentRepository $agentRepository,
-        private readonly LoggerInterface $logger,
-        private readonly ?BillAuditService $billAuditService = null
-    ) {}
+        private EntityManagerInterface $entityManager,
+        private AgentBillRepository $agentBillRepository,
+        private OrderRepository $orderRepository,
+        private AgentRepository $agentRepository,
+        private LoggerInterface $logger,
+        private ?BillAuditService $billAuditService = null,
+    ) {
+    }
 
     /**
      * 自动生成指定月份的代理账单
+     * @return array<int, AgentBill>
      */
     public function generateMonthlyBills(string $billMonth, bool $force = false): array
     {
@@ -44,24 +50,26 @@ class AgentBillService
         $endDate->setTime(23, 59, 59);
 
         // 获取所有活跃代理
+        /** @var Agent[] $agents */
         $agents = $this->agentRepository
             ->createQueryBuilder('a')
             ->andWhere('a.status = :status')
             ->setParameter('status', 'active')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
 
         foreach ($agents as $agent) {
             // 检查是否已存在该月账单
             $existingBill = $this->agentBillRepository->findOneBy([
                 'agent' => $agent,
-                'billMonth' => $billMonth
+                'billMonth' => $billMonth,
             ]);
 
             if (null !== $existingBill && !$force) {
                 $this->logger->warning('代理账单已存在', [
                     'agentId' => $agent->getId(),
-                    'billMonth' => $billMonth
+                    'billMonth' => $billMonth,
                 ]);
                 continue;
             }
@@ -83,7 +91,7 @@ class AgentBillService
 
         $this->logger->info('代理账单生成完成', [
             'billMonth' => $billMonth,
-            'generatedCount' => count($generatedBills)
+            'generatedCount' => count($generatedBills),
         ]);
 
         return $generatedBills;
@@ -93,12 +101,13 @@ class AgentBillService
      * 为单个代理生成账单
      */
     public function generateAgentBill(
-        Agent              $agent,
-        string             $billMonth,
+        Agent $agent,
+        string $billMonth,
         \DateTimeInterface $startDate,
-        \DateTimeInterface $endDate
+        \DateTimeInterface $endDate,
     ): ?AgentBill {
         // 查询该代理在指定时间范围内的已确认订单
+        /** @var Order[] $orders */
         $orders = $this->orderRepository->createQueryBuilder('o')
             ->andWhere('o.agent = :agent')
             ->andWhere('o.status = :status')
@@ -108,13 +117,15 @@ class AgentBillService
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
 
-        if (empty($orders)) {
+        if ([] === $orders) {
             $this->logger->info('代理无有效订单，跳过账单生成', [
                 'agentId' => $agent->getId(),
-                'billMonth' => $billMonth
+                'billMonth' => $billMonth,
             ]);
+
             return null;
         }
 
@@ -123,14 +134,14 @@ class AgentBillService
 
         // 创建账单
         $bill = new AgentBill();
-        $bill->setAgent($agent)
-            ->setBillMonth($billMonth)
-            ->setOrderCount($billData['orderCount'])
-            ->setTotalAmount($billData['totalAmount'])
-            ->setCommissionRate($agent->getCommissionRate())
-            ->setCommissionAmount($billData['commissionAmount'])
-            ->setSettlementType(SettlementTypeEnum::MONTHLY)
-            ->setStatus(BillStatusEnum::PENDING);
+        $bill->setAgent($agent);
+        $bill->setBillMonth($billMonth);
+        $bill->setOrderCount($billData['orderCount']);
+        $bill->setTotalAmount($billData['totalAmount']);
+        $bill->setCommissionRate($agent->getCommissionRate());
+        $bill->setCommissionAmount($billData['commissionAmount']);
+        $bill->setSettlementType(SettlementTypeEnum::MONTHLY);
+        $bill->setStatus(BillStatusEnum::PENDING);
 
         $this->entityManager->persist($bill);
 
@@ -139,7 +150,7 @@ class AgentBillService
             'billMonth' => $billMonth,
             'orderCount' => $billData['orderCount'],
             'totalAmount' => $billData['totalAmount'],
-            'commissionAmount' => $billData['commissionAmount']
+            'commissionAmount' => $billData['commissionAmount'],
         ]);
 
         return $bill;
@@ -149,7 +160,7 @@ class AgentBillService
      * 计算账单数据
      *
      * @param Order[] $orders
-     * @return array
+     * @return array{orderCount: int, totalAmount: string, commissionAmount: string}
      */
     private function calculateBillData(array $orders): array
     {
@@ -163,13 +174,17 @@ class AgentBillService
             // 计算利润总额
             foreach ($order->getOrderItems() as $item) {
                 $itemProfit = BigDecimal::of($item->getAmount())
-                    ->minus($item->getCostPrice());
+                    ->minus($item->getCostPrice())
+                ;
                 $totalProfit = $totalProfit->plus($itemProfit);
             }
         }
 
         // 佣金 = 利润 * 佣金比例
         $agent = $orders[0]->getAgent();
+        if (null === $agent) {
+            throw new AgentBillException('Order must have an agent');
+        }
         $commissionRate = BigDecimal::of($agent->getCommissionRate());
         $commissionAmount = $totalProfit->multipliedBy($commissionRate->dividedBy('100', 4))->toScale(2);
 
@@ -177,7 +192,7 @@ class AgentBillService
             'orderCount' => $orderCount,
             'totalAmount' => $totalAmount->toScale(2)->__toString(),
             'totalProfit' => $totalProfit->toScale(2)->__toString(),
-            'commissionAmount' => $commissionAmount->__toString()
+            'commissionAmount' => $commissionAmount->__toString(),
         ];
     }
 
@@ -188,11 +203,12 @@ class AgentBillService
     {
         $oldStatus = $bill->getStatus();
 
-        if ($oldStatus !== BillStatusEnum::PENDING) {
+        if (BillStatusEnum::PENDING !== $oldStatus) {
             $this->logger->warning('账单状态不正确，无法确认', [
                 'billId' => $bill->getId(),
-                'currentStatus' => $oldStatus->value
+                'currentStatus' => $oldStatus->value,
             ]);
+
             return false;
         }
 
@@ -203,6 +219,7 @@ class AgentBillService
         $this->billAuditService?->logStatusChange($bill, $oldStatus, BillStatusEnum::CONFIRMED, $remarks);
 
         $this->logger->info('账单已确认', ['billId' => $bill->getId()]);
+
         return true;
     }
 
@@ -211,7 +228,7 @@ class AgentBillService
      */
     public function recalculateBill(AgentBill $bill, ?string $remarks = null): AgentBill
     {
-        if ($bill->getStatus() === BillStatusEnum::PAID) {
+        if (BillStatusEnum::PAID === $bill->getStatus()) {
             throw new AgentBillException('已支付的账单不能重新计算');
         }
 
@@ -220,7 +237,7 @@ class AgentBillService
             'orderCount' => $bill->getOrderCount(),
             'totalAmount' => $bill->getTotalAmount(),
             'commissionAmount' => $bill->getCommissionAmount(),
-            'commissionRate' => $bill->getCommissionRate()
+            'commissionRate' => $bill->getCommissionRate(),
         ];
 
         $startDate = new \DateTime($bill->getBillMonth() . '-01 00:00:00');
@@ -229,6 +246,7 @@ class AgentBillService
         $endDate->setTime(23, 59, 59);
 
         // 重新查询订单
+        /** @var Order[] $orders */
         $orders = $this->orderRepository->createQueryBuilder('o')
             ->andWhere('o.agent = :agent')
             ->andWhere('o.status = :status')
@@ -238,14 +256,15 @@ class AgentBillService
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
 
         $billData = $this->calculateBillData($orders);
 
-        $bill->setOrderCount($billData['orderCount'])
-            ->setTotalAmount($billData['totalAmount'])
-            ->setCommissionAmount($billData['commissionAmount'])
-            ->setCommissionRate($bill->getAgent()->getCommissionRate());
+        $bill->setOrderCount($billData['orderCount']);
+        $bill->setTotalAmount($billData['totalAmount']);
+        $bill->setCommissionAmount($billData['commissionAmount']);
+        $bill->setCommissionRate($bill->getAgent()?->getCommissionRate() ?? '0.00');
 
         $this->entityManager->flush();
 
@@ -254,12 +273,13 @@ class AgentBillService
             'orderCount' => $bill->getOrderCount(),
             'totalAmount' => $bill->getTotalAmount(),
             'commissionAmount' => $bill->getCommissionAmount(),
-            'commissionRate' => $bill->getCommissionRate()
+            'commissionRate' => $bill->getCommissionRate(),
         ];
 
         $this->billAuditService?->logRecalculation($bill, $oldData, $newData, $remarks);
 
         $this->logger->info('账单重新计算完成', ['billId' => $bill->getId()]);
+
         return $bill;
     }
 
@@ -270,11 +290,12 @@ class AgentBillService
     {
         $oldStatus = $bill->getStatus();
 
-        if ($oldStatus !== BillStatusEnum::CONFIRMED) {
+        if (BillStatusEnum::CONFIRMED !== $oldStatus) {
             $this->logger->warning('只有已确认的账单才能标记为已支付', [
                 'billId' => $bill->getId(),
-                'currentStatus' => $oldStatus->value
+                'currentStatus' => $oldStatus->value,
             ]);
+
             return false;
         }
 
@@ -285,47 +306,72 @@ class AgentBillService
         $this->billAuditService?->logStatusChange($bill, $oldStatus, BillStatusEnum::PAID, $remarks);
 
         $this->logger->info('账单已标记为已支付', ['billId' => $bill->getId()]);
+
         return true;
     }
 
     /**
      * 获取代理账单列表
+     * @return array{data: AgentBill[], total: int, page: int, limit: int}
      */
     public function getAgentBills(
-        ?Agent          $agent = null,
+        ?Agent $agent = null,
         ?BillStatusEnum $status = null,
-        ?string         $billMonth = null,
-        int             $page = 1,
-        int             $limit = 20
+        ?string $billMonth = null,
+        int $page = 1,
+        int $limit = 20,
     ): array {
         $qb = $this->agentBillRepository->createQueryBuilder('ab')
             ->leftJoin('ab.agent', 'a')
-            ->addSelect('a');
+            ->addSelect('a')
+        ;
 
         if (null !== $agent) {
             $qb->andWhere('ab.agent = :agent')
-                ->setParameter('agent', $agent);
+                ->setParameter('agent', $agent)
+            ;
         }
 
         if (null !== $status) {
             $qb->andWhere('ab.status = :status')
-                ->setParameter('status', $status);
+                ->setParameter('status', $status)
+            ;
         }
 
         if (null !== $billMonth) {
             $qb->andWhere('ab.billMonth = :billMonth')
-                ->setParameter('billMonth', $billMonth);
+                ->setParameter('billMonth', $billMonth)
+            ;
         }
 
         $qb->orderBy('ab.createTime', 'DESC')
             ->setFirstResult(($page - 1) * $limit)
-            ->setMaxResults($limit);
+            ->setMaxResults($limit)
+        ;
 
-        return $qb->getQuery()->getResult();
+        /** @var AgentBill[] $data */
+        $data = $qb->getQuery()->getResult();
+
+        // 获取总数
+        $totalQb = clone $qb;
+        $total = $totalQb->select('COUNT(ab.id)')
+            ->setFirstResult(0)
+            ->setMaxResults(null)
+            ->getQuery()
+            ->getSingleScalarResult()
+        ;
+
+        return [
+            'data' => $data,
+            'total' => (int) $total,
+            'page' => $page,
+            'limit' => $limit,
+        ];
     }
 
     /**
      * 获取账单统计数据
+     * @return array<int, array<string, mixed>>
      */
     public function getBillStatistics(string $billMonth): array
     {
@@ -334,17 +380,20 @@ class AgentBillService
                 'ab.status',
                 'COUNT(ab.id) as bill_count',
                 'SUM(ab.totalAmount) as total_amount',
-                'SUM(ab.commissionAmount) as total_commission'
+                'SUM(ab.commissionAmount) as total_commission',
             ])
             ->andWhere('ab.billMonth = :billMonth')
             ->setParameter('billMonth', $billMonth)
-            ->groupBy('ab.status');
+            ->groupBy('ab.status')
+        ;
 
+        /** @var array<int, array<string, mixed>> */
         return $qb->getQuery()->getResult();
     }
 
     /**
      * 获取账单详细统计报表
+     * @return array<string, mixed>
      */
     public function getDetailedBillReport(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
@@ -354,8 +403,10 @@ class AgentBillService
             ->andWhere('ab.createTime BETWEEN :startDate AND :endDate')
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
-            ->orderBy('ab.createTime', 'DESC');
+            ->orderBy('ab.createTime', 'DESC')
+        ;
 
+        /** @var AgentBill[] $bills */
         $bills = $qb->getQuery()->getResult();
 
         $report = [
@@ -364,7 +415,7 @@ class AgentBillService
             'total_commission' => '0.00',
             'status_summary' => [],
             'agent_summary' => [],
-            'monthly_summary' => []
+            'monthly_summary' => [],
         ];
 
         $totalAmount = BigDecimal::of('0.00');
@@ -382,23 +433,27 @@ class AgentBillService
             if (!isset($report['status_summary'][$status])) {
                 $report['status_summary'][$status] = ['count' => 0, 'amount' => '0.00', 'commission' => '0.00'];
             }
-            $report['status_summary'][$status]['count']++;
+            ++$report['status_summary'][$status]['count'];
             $statusAmount = BigDecimal::of($report['status_summary'][$status]['amount'])->plus($billAmount);
             $statusCommission = BigDecimal::of($report['status_summary'][$status]['commission'])->plus($billCommission);
             $report['status_summary'][$status]['amount'] = $statusAmount->toScale(2)->__toString();
             $report['status_summary'][$status]['commission'] = $statusCommission->toScale(2)->__toString();
 
             // 代理统计
-            $agentCode = $bill->getAgent()->getCode();
+            $agent = $bill->getAgent();
+            if (null === $agent) {
+                continue;
+            }
+            $agentCode = $agent->getCode();
             if (!isset($report['agent_summary'][$agentCode])) {
                 $report['agent_summary'][$agentCode] = [
-                    'name' => $bill->getAgent()->getCompanyName(),
+                    'name' => $agent->getCompanyName(),
                     'count' => 0,
                     'amount' => '0.00',
-                    'commission' => '0.00'
+                    'commission' => '0.00',
                 ];
             }
-            $report['agent_summary'][$agentCode]['count']++;
+            ++$report['agent_summary'][$agentCode]['count'];
             $agentAmount = BigDecimal::of($report['agent_summary'][$agentCode]['amount'])->plus($billAmount);
             $agentCommission = BigDecimal::of($report['agent_summary'][$agentCode]['commission'])->plus($billCommission);
             $report['agent_summary'][$agentCode]['amount'] = $agentAmount->toScale(2)->__toString();
@@ -409,7 +464,7 @@ class AgentBillService
             if (!isset($report['monthly_summary'][$month])) {
                 $report['monthly_summary'][$month] = ['count' => 0, 'amount' => '0.00', 'commission' => '0.00'];
             }
-            $report['monthly_summary'][$month]['count']++;
+            ++$report['monthly_summary'][$month]['count'];
             $monthlyAmount = BigDecimal::of($report['monthly_summary'][$month]['amount'])->plus($billAmount);
             $monthlyCommission = BigDecimal::of($report['monthly_summary'][$month]['commission'])->plus($billCommission);
             $report['monthly_summary'][$month]['amount'] = $monthlyAmount->toScale(2)->__toString();

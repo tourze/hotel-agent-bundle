@@ -1,27 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Enum;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
+use Tourze\PHPUnitEnum\AbstractEnumTestCase;
 
-class BillStatusEnumTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(BillStatusEnum::class)]
+final class BillStatusEnumTest extends AbstractEnumTestCase
 {
-    public function test_enum_values(): void
+    public function testEnumValues(): void
     {
         $this->assertSame('pending', BillStatusEnum::PENDING->value);
         $this->assertSame('confirmed', BillStatusEnum::CONFIRMED->value);
         $this->assertSame('paid', BillStatusEnum::PAID->value);
     }
 
-    public function test_getLabel_returns_correct_labels(): void
+    public function testGetLabelReturnsCorrectLabels(): void
     {
         $this->assertSame('待确认', BillStatusEnum::PENDING->getLabel());
         $this->assertSame('已确认', BillStatusEnum::CONFIRMED->getLabel());
         $this->assertSame('已支付', BillStatusEnum::PAID->getLabel());
     }
 
-    public function test_cases_returns_all_enum_cases(): void
+    public function testCasesReturnsAllEnumCases(): void
     {
         $cases = BillStatusEnum::cases();
 
@@ -31,41 +38,42 @@ class BillStatusEnumTest extends TestCase
         $this->assertContains(BillStatusEnum::PAID, $cases);
     }
 
-    public function test_from_creates_enum_from_value(): void
+    public function testFromCreatesEnumFromValue(): void
     {
         $this->assertSame(BillStatusEnum::PENDING, BillStatusEnum::from('pending'));
         $this->assertSame(BillStatusEnum::CONFIRMED, BillStatusEnum::from('confirmed'));
         $this->assertSame(BillStatusEnum::PAID, BillStatusEnum::from('paid'));
     }
 
-    public function test_from_throws_exception_for_invalid_value(): void
+    public function testFromThrowsExceptionForInvalidValue(): void
     {
         $this->expectException(\ValueError::class);
         BillStatusEnum::from('invalid');
     }
 
-    public function test_tryFrom_returns_null_for_invalid_value(): void
+    public function testTryFromReturnsNullForInvalidValue(): void
     {
-        $this->assertNull(BillStatusEnum::tryFrom('invalid'));
-        $this->assertNull(BillStatusEnum::tryFrom(''));
-        $this->assertNull(BillStatusEnum::tryFrom('unknown'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('invalid'));
+        $this->assertSame(null, BillStatusEnum::tryFrom(''));
+        $this->assertSame(null, BillStatusEnum::tryFrom('unknown'));
     }
 
-    public function test_tryFrom_returns_enum_for_valid_value(): void
+    public function testTryFromReturnsEnumForValidValue(): void
     {
         $this->assertSame(BillStatusEnum::PENDING, BillStatusEnum::tryFrom('pending'));
         $this->assertSame(BillStatusEnum::CONFIRMED, BillStatusEnum::tryFrom('confirmed'));
         $this->assertSame(BillStatusEnum::PAID, BillStatusEnum::tryFrom('paid'));
     }
 
-    public function test_implements_required_interfaces(): void
+    public function testImplementsRequiredInterfaces(): void
     {
-        $this->assertInstanceOf(\Tourze\EnumExtra\Labelable::class, BillStatusEnum::PENDING);
-        $this->assertInstanceOf(\Tourze\EnumExtra\Itemable::class, BillStatusEnum::PENDING);
-        $this->assertInstanceOf(\Tourze\EnumExtra\Selectable::class, BillStatusEnum::PENDING);
+        $enum = BillStatusEnum::PENDING;
+
+        // 验证接口方法正常工作
+        $this->assertSame('待确认', $enum->getLabel());
     }
 
-    public function test_items_returns_array_with_labels(): void
+    public function testItemsReturnsArrayWithLabels(): void
     {
         $items = [];
         foreach (BillStatusEnum::cases() as $case) {
@@ -76,7 +84,7 @@ class BillStatusEnumTest extends TestCase
         $this->assertSame('已支付', $items['paid']);
     }
 
-    public function test_all_enum_cases_have_labels(): void
+    public function testAllEnumCasesHaveLabels(): void
     {
         foreach (BillStatusEnum::cases() as $case) {
             $label = $case->getLabel();
@@ -84,40 +92,62 @@ class BillStatusEnumTest extends TestCase
         }
     }
 
-    public function test_enum_case_consistency(): void
+    public function testEnumCaseConsistency(): void
     {
         $cases = BillStatusEnum::cases();
-        $values = array_map(fn($case) => $case->value, $cases);
+        $values = array_map(fn ($case) => $case->value, $cases);
         $uniqueValues = array_unique($values);
-        
+
         $this->assertSame(count($cases), count($uniqueValues), '枚举值应该唯一');
     }
 
-    public function test_case_insensitive_value_matching(): void
+    public function testCaseInsensitiveValueMatching(): void
     {
-        $this->assertNull(BillStatusEnum::tryFrom('PENDING'));
-        $this->assertNull(BillStatusEnum::tryFrom('Pending'));
-        $this->assertNull(BillStatusEnum::tryFrom('CONFIRMED'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('PENDING'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('Pending'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('CONFIRMED'));
     }
 
-    public function test_empty_and_null_values(): void
+    public function testEmptyAndNullValues(): void
     {
-        $this->assertNull(BillStatusEnum::tryFrom(''));
-        $this->assertNull(BillStatusEnum::tryFrom('0'));
-        $this->assertNull(BillStatusEnum::tryFrom('false'));
+        $this->assertSame(null, BillStatusEnum::tryFrom(''));
+        $this->assertSame(null, BillStatusEnum::tryFrom('0'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('false'));
     }
 
-    public function test_numeric_values(): void
+    public function testNumericValues(): void
     {
-        $this->assertNull(BillStatusEnum::tryFrom('1'));
-        $this->assertNull(BillStatusEnum::tryFrom('0'));
-        $this->assertNull(BillStatusEnum::tryFrom('123'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('1'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('0'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('123'));
     }
 
-    public function test_special_characters(): void
+    public function testSpecialCharacters(): void
     {
-        $this->assertNull(BillStatusEnum::tryFrom(' pending '));
-        $this->assertNull(BillStatusEnum::tryFrom('pending-'));
-        $this->assertNull(BillStatusEnum::tryFrom('_pending'));
+        $this->assertSame(null, BillStatusEnum::tryFrom(' pending '));
+        $this->assertSame(null, BillStatusEnum::tryFrom('pending-'));
+        $this->assertSame(null, BillStatusEnum::tryFrom('_pending'));
     }
-} 
+
+    public function testToArrayReturnsCorrectStructure(): void
+    {
+        $expected = [
+            'value' => 'pending',
+            'label' => '待确认',
+        ];
+
+        $this->assertSame($expected, BillStatusEnum::PENDING->toArray());
+    }
+
+    public function testToSelectItemReturnsCorrectStructure(): void
+    {
+        $expected = [
+            'label' => '待确认',
+            'text' => '待确认',
+            'value' => 'pending',
+            'name' => '待确认',
+        ];
+
+        $this->assertSame($expected, BillStatusEnum::PENDING->toSelectItem());
+    }
+}

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -24,7 +26,7 @@ enum PaymentStatusEnum: string implements Labelable, Itemable, Selectable
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => '待支付',
             self::SUCCESS => '支付成功',
             self::FAILED => '支付失败',
@@ -32,4 +34,8 @@ enum PaymentStatusEnum: string implements Labelable, Itemable, Selectable
             self::CANCELLED => '已取消',
         };
     }
+
+    /**
+     * 生成枚举下拉选项
+     */
 }

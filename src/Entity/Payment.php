@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Entity;
 
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Stringable;
+use Symfony\Component\Validator\Constraints as Assert;
+use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\DoctrineUserBundle\Traits\CreatedByAware;
 use Tourze\HotelAgentBundle\Enum\PaymentMethodEnum;
@@ -13,10 +16,7 @@ use Tourze\HotelAgentBundle\Repository\PaymentRepository;
 
 #[ORM\Entity(repositoryClass: PaymentRepository::class)]
 #[ORM\Table(name: 'hotel_agent_payment', options: ['comment' => '支付记录表'])]
-#[ORM\Index(name: 'payment_idx_bill', columns: ['agent_bill_id'])]
-#[ORM\Index(name: 'payment_idx_status', columns: ['status'])]
-#[ORM\Index(name: 'payment_idx_method', columns: ['payment_method'])]
-class Payment implements Stringable
+class Payment implements \Stringable
 {
     use TimestampableAware;
     use CreatedByAware;
@@ -24,43 +24,64 @@ class Payment implements Stringable
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
-    private ?int $id = null;
+    private int $id = 0;
 
     #[ORM\ManyToOne(targetEntity: AgentBill::class)]
     #[ORM\JoinColumn(name: 'agent_bill_id', referencedColumnName: 'id', nullable: false)]
+    #[Assert\NotNull]
     private AgentBill $agentBill;
 
     #[ORM\Column(type: Types::STRING, length: 50, options: ['comment' => '支付单号'])]
+    #[Assert\NotBlank]
+    #[Assert\Length(max: 50)]
     private string $paymentNo = '';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 12, scale: 2, options: ['comment' => '支付金额'])]
+    #[Assert\NotBlank]
+    #[Assert\PositiveOrZero]
+    #[Assert\Length(max: 12)]
     private string $amount = '0.00';
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: PaymentMethodEnum::class, options: ['comment' => '支付方式'])]
+    #[Assert\NotNull]
+    #[Assert\Choice(callback: [PaymentMethodEnum::class, 'cases'])]
+    #[IndexColumn]
     private PaymentMethodEnum $paymentMethod = PaymentMethodEnum::BANK_TRANSFER;
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: PaymentStatusEnum::class, options: ['comment' => '支付状态'])]
+    #[Assert\NotNull]
+    #[Assert\Choice(callback: [PaymentStatusEnum::class, 'cases'])]
+    #[IndexColumn]
     private PaymentStatusEnum $status = PaymentStatusEnum::PENDING;
 
     #[ORM\Column(type: Types::STRING, length: 200, nullable: true, options: ['comment' => '第三方交易号'])]
+    #[Assert\Length(max: 200)]
     private ?string $transactionId = null;
 
     #[ORM\Column(type: Types::STRING, length: 200, nullable: true, options: ['comment' => '支付凭证URL'])]
+    #[Assert\Url]
+    #[Assert\Length(max: 200)]
     private ?string $paymentProofUrl = null;
 
     #[ORM\Column(type: Types::STRING, length: 200, nullable: true, options: ['comment' => '电子签章URL'])]
+    #[Assert\Url]
+    #[Assert\Length(max: 200)]
     private ?string $digitalSignatureUrl = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '支付时间'])]
+    #[Assert\Type(type: \DateTimeImmutable::class)]
     private ?\DateTimeImmutable $paymentTime = null;
 
     #[ORM\Column(type: Types::DATETIME_IMMUTABLE, nullable: true, options: ['comment' => '确认时间'])]
+    #[Assert\Type(type: \DateTimeImmutable::class)]
     private ?\DateTimeImmutable $confirmTime = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '备注'])]
+    #[Assert\Length(max: 65535)]
     private ?string $remarks = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '失败原因'])]
+    #[Assert\Length(max: 65535)]
     private ?string $failureReason = null;
 
     public function __toString(): string
@@ -68,7 +89,7 @@ class Payment implements Stringable
         return sprintf('支付 %s (￥%s)', $this->paymentNo, $this->amount);
     }
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
     }
@@ -78,10 +99,9 @@ class Payment implements Stringable
         return $this->agentBill;
     }
 
-    public function setAgentBill(AgentBill $agentBill): self
+    public function setAgentBill(AgentBill $agentBill): void
     {
         $this->agentBill = $agentBill;
-        return $this;
     }
 
     public function getPaymentNo(): string
@@ -89,10 +109,9 @@ class Payment implements Stringable
         return $this->paymentNo;
     }
 
-    public function setPaymentNo(string $paymentNo): self
+    public function setPaymentNo(string $paymentNo): void
     {
         $this->paymentNo = $paymentNo;
-        return $this;
     }
 
     public function getAmount(): string
@@ -100,10 +119,9 @@ class Payment implements Stringable
         return $this->amount;
     }
 
-    public function setAmount(string $amount): self
+    public function setAmount(string $amount): void
     {
         $this->amount = $amount;
-        return $this;
     }
 
     public function getPaymentMethod(): PaymentMethodEnum
@@ -111,10 +129,9 @@ class Payment implements Stringable
         return $this->paymentMethod;
     }
 
-    public function setPaymentMethod(PaymentMethodEnum $paymentMethod): self
+    public function setPaymentMethod(PaymentMethodEnum $paymentMethod): void
     {
         $this->paymentMethod = $paymentMethod;
-        return $this;
     }
 
     public function getStatus(): PaymentStatusEnum
@@ -122,10 +139,9 @@ class Payment implements Stringable
         return $this->status;
     }
 
-    public function setStatus(PaymentStatusEnum $status): self
+    public function setStatus(PaymentStatusEnum $status): void
     {
         $this->status = $status;
-        return $this;
     }
 
     public function getTransactionId(): ?string
@@ -133,10 +149,9 @@ class Payment implements Stringable
         return $this->transactionId;
     }
 
-    public function setTransactionId(?string $transactionId): self
+    public function setTransactionId(?string $transactionId): void
     {
         $this->transactionId = $transactionId;
-        return $this;
     }
 
     public function getPaymentProofUrl(): ?string
@@ -144,10 +159,9 @@ class Payment implements Stringable
         return $this->paymentProofUrl;
     }
 
-    public function setPaymentProofUrl(?string $paymentProofUrl): self
+    public function setPaymentProofUrl(?string $paymentProofUrl): void
     {
         $this->paymentProofUrl = $paymentProofUrl;
-        return $this;
     }
 
     public function getDigitalSignatureUrl(): ?string
@@ -155,10 +169,9 @@ class Payment implements Stringable
         return $this->digitalSignatureUrl;
     }
 
-    public function setDigitalSignatureUrl(?string $digitalSignatureUrl): self
+    public function setDigitalSignatureUrl(?string $digitalSignatureUrl): void
     {
         $this->digitalSignatureUrl = $digitalSignatureUrl;
-        return $this;
     }
 
     public function getPaymentTime(): ?\DateTimeImmutable
@@ -166,10 +179,9 @@ class Payment implements Stringable
         return $this->paymentTime;
     }
 
-    public function setPaymentTime(?\DateTimeImmutable $paymentTime): self
+    public function setPaymentTime(?\DateTimeImmutable $paymentTime): void
     {
         $this->paymentTime = $paymentTime;
-        return $this;
     }
 
     public function getConfirmTime(): ?\DateTimeImmutable
@@ -177,10 +189,9 @@ class Payment implements Stringable
         return $this->confirmTime;
     }
 
-    public function setConfirmTime(?\DateTimeImmutable $confirmTime): self
+    public function setConfirmTime(?\DateTimeImmutable $confirmTime): void
     {
         $this->confirmTime = $confirmTime;
-        return $this;
     }
 
     public function getRemarks(): ?string
@@ -188,10 +199,9 @@ class Payment implements Stringable
         return $this->remarks;
     }
 
-    public function setRemarks(?string $remarks): self
+    public function setRemarks(?string $remarks): void
     {
         $this->remarks = $remarks;
-        return $this;
     }
 
     public function getFailureReason(): ?string
@@ -199,10 +209,9 @@ class Payment implements Stringable
         return $this->failureReason;
     }
 
-    public function setFailureReason(?string $failureReason): self
+    public function setFailureReason(?string $failureReason): void
     {
         $this->failureReason = $failureReason;
-        return $this;
     }
 
     /**
@@ -215,6 +224,7 @@ class Payment implements Stringable
         if (null !== $transactionId) {
             $this->transactionId = $transactionId;
         }
+
         return $this;
     }
 
@@ -225,6 +235,7 @@ class Payment implements Stringable
     {
         $this->status = PaymentStatusEnum::FAILED;
         $this->failureReason = $failureReason;
+
         return $this;
     }
 
@@ -233,9 +244,10 @@ class Payment implements Stringable
      */
     public function confirm(): self
     {
-        if ($this->status === PaymentStatusEnum::SUCCESS) {
+        if (PaymentStatusEnum::SUCCESS === $this->status) {
             $this->confirmTime = new \DateTimeImmutable();
         }
+
         return $this;
     }
 
@@ -244,9 +256,10 @@ class Payment implements Stringable
      */
     public function generatePaymentNo(): self
     {
-        if (empty($this->paymentNo)) {
+        if ('' === $this->paymentNo) {
             $this->paymentNo = 'PAY' . date('YmdHis') . rand(1000, 9999);
         }
+
         return $this;
     }
 }

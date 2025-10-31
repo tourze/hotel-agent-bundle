@@ -1,325 +1,395 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Entity;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\AgentHotelMapping;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\AgentLevelEnum;
 use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
+use Tourze\PHPUnitDoctrineEntity\AbstractEntityTestCase;
 
-class AgentTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(Agent::class)]
+final class AgentTest extends AbstractEntityTestCase
 {
-    private Agent $agent;
-
-    protected function setUp(): void
+    public static function propertiesProvider(): iterable
     {
-        $this->agent = new Agent();
+        yield 'userId' => ['userId', 12345];
+        yield 'code' => ['code', 'AGT001'];
+        yield 'companyName' => ['companyName', '测试公司'];
+        yield 'contactPerson' => ['contactPerson', '张三'];
+        yield 'phone' => ['phone', '13800138000'];
+        yield 'email' => ['email', 'test@example.com'];
+        yield 'licenseUrl' => ['licenseUrl', 'https://example.com/license.pdf'];
+        yield 'level' => ['level', AgentLevelEnum::B];
+        yield 'commissionRate' => ['commissionRate', '0.15'];
+        yield 'status' => ['status', AgentStatusEnum::ACTIVE];
+        yield 'expiryDate' => ['expiryDate', new \DateTimeImmutable('+1 year')];
     }
 
-    public function test_construct_initializes_collections(): void
+    protected function createEntity(): Agent
     {
         $agent = new Agent();
+        $agent->setCreatedBy('test-user');
+
+        return $agent;
+    }
+
+    public function testConstructInitializesCollections(): void
+    {
+        $agent = new Agent();
+        $agent->setCreatedBy('test-user');
 
         $this->assertCount(0, $agent->getHotelMappings());
         $this->assertCount(0, $agent->getOrders());
         $this->assertCount(0, $agent->getBills());
     }
 
-    public function test_toString_returns_company_name_and_code(): void
+    public function testToStringReturnsCompanyNameAndCode(): void
     {
-        $this->agent->setCompanyName('测试公司')->setCode('AGT001');
+        $agent = new Agent();
+        $agent->setCompanyName('测试公司');
+        $agent->setCode('AGT001');
 
-        $result = (string)$this->agent;
+        $result = (string) $agent;
 
         $this->assertSame('测试公司 (AGT001)', $result);
     }
 
-    public function test_toString_with_empty_values(): void
+    public function testToStringWithEmptyValues(): void
     {
-        $result = (string)$this->agent;
+        $agent = new Agent();
+
+        $result = (string) $agent;
 
         $this->assertSame(' ()', $result);
     }
 
-    public function test_setUserId_with_valid_value(): void
+    public function testSetUserIdWithValidValue(): void
     {
-        $this->agent->setUserId(123);
+        $agent = new Agent();
+        $agent->setUserId(123);
 
-        $this->assertSame(123, $this->agent->getUserId());
+        $this->assertSame(123, $agent->getUserId());
     }
 
-    public function test_setUserId_with_null(): void
+    public function testSetUserIdWithNull(): void
     {
-        $this->agent->setUserId(null);
+        $agent = new Agent();
+        $agent->setUserId(null);
 
-        $this->assertNull($this->agent->getUserId());
+        $this->assertNull($agent->getUserId());
     }
 
-    public function test_setCode_with_valid_code(): void
+    public function testSetCodeWithValidCode(): void
     {
-        $this->agent->setCode('AGT20250101');
+        $agent = new Agent();
+        $agent->setCode('AGT20250101');
 
-        $this->assertSame('AGT20250101', $this->agent->getCode());
+        $this->assertSame('AGT20250101', $agent->getCode());
     }
 
-    public function test_setCompanyName_with_valid_name(): void
+    public function testSetCompanyNameWithValidName(): void
     {
-        $this->agent->setCompanyName('北京测试公司');
+        $agent = new Agent();
+        $agent->setCompanyName('北京测试公司');
 
-        $this->assertSame('北京测试公司', $this->agent->getCompanyName());
+        $this->assertSame('北京测试公司', $agent->getCompanyName());
     }
 
-    public function test_setContactPerson_with_valid_name(): void
+    public function testSetContactPersonWithValidName(): void
     {
-        $this->agent->setContactPerson('张三');
+        $agent = new Agent();
+        $agent->setContactPerson('张三');
 
-        $this->assertSame('张三', $this->agent->getContactPerson());
+        $this->assertSame('张三', $agent->getContactPerson());
     }
 
-    public function test_setPhone_with_valid_phone(): void
+    public function testSetPhoneWithValidPhone(): void
     {
-        $this->agent->setPhone('13800138000');
+        $agent = new Agent();
+        $agent->setPhone('13800138000');
 
-        $this->assertSame('13800138000', $this->agent->getPhone());
+        $this->assertSame('13800138000', $agent->getPhone());
     }
 
-    public function test_setEmail_with_valid_email(): void
+    public function testSetEmailWithValidEmail(): void
     {
-        $this->agent->setEmail('test@example.com');
+        $agent = new Agent();
+        $agent->setEmail('test@example.com');
 
-        $this->assertSame('test@example.com', $this->agent->getEmail());
+        $this->assertSame('test@example.com', $agent->getEmail());
     }
 
-    public function test_setEmail_with_null(): void
+    public function testSetEmailWithNull(): void
     {
-        $this->agent->setEmail(null);
+        $agent = new Agent();
+        $agent->setEmail(null);
 
-        $this->assertNull($this->agent->getEmail());
+        $this->assertNull($agent->getEmail());
     }
 
-    public function test_setLicenseUrl_with_valid_url(): void
+    public function testSetLicenseUrlWithValidUrl(): void
     {
         $url = 'https://example.com/license.jpg';
-        $this->agent->setLicenseUrl($url);
+        $agent = new Agent();
+        $agent->setLicenseUrl($url);
 
-        $this->assertSame($url, $this->agent->getLicenseUrl());
+        $this->assertSame($url, $agent->getLicenseUrl());
     }
 
-    public function test_setLevel_automatically_updates_commission_rate(): void
+    public function testSetLevelAutomaticallyUpdatesCommissionRate(): void
     {
-        $this->agent->setLevel(AgentLevelEnum::A);
+        $agent = new Agent();
+        $agent->setLevel(AgentLevelEnum::A);
 
-        $this->assertSame(AgentLevelEnum::A, $this->agent->getLevel());
-        $this->assertSame('0.10', $this->agent->getCommissionRate());
+        $this->assertSame(AgentLevelEnum::A, $agent->getLevel());
+        $this->assertSame('0.10', $agent->getCommissionRate());
     }
 
-    public function test_setLevel_b_updates_commission_rate(): void
+    public function testSetLevelBUpdatesCommissionRate(): void
     {
-        $this->agent->setLevel(AgentLevelEnum::B);
+        $agent = new Agent();
+        $agent->setLevel(AgentLevelEnum::B);
 
-        $this->assertSame('0.08', $this->agent->getCommissionRate());
+        $this->assertSame('0.08', $agent->getCommissionRate());
     }
 
-    public function test_setLevel_c_updates_commission_rate(): void
+    public function testSetLevelCUpdatesCommissionRate(): void
     {
-        $this->agent->setLevel(AgentLevelEnum::C);
+        $agent = new Agent();
+        $agent->setLevel(AgentLevelEnum::C);
 
-        $this->assertSame('0.05', $this->agent->getCommissionRate());
+        $this->assertSame('0.05', $agent->getCommissionRate());
     }
 
-    public function test_setCommissionRate_with_valid_rate(): void
+    public function testSetCommissionRateWithValidRate(): void
     {
-        $this->agent->setCommissionRate('0.15');
+        $agent = new Agent();
+        $agent->setCommissionRate('0.15');
 
-        $this->assertSame('0.15', $this->agent->getCommissionRate());
+        $this->assertSame('0.15', $agent->getCommissionRate());
     }
 
-    public function test_setStatus_with_valid_status(): void
+    public function testSetStatusWithValidStatus(): void
     {
-        $this->agent->setStatus(AgentStatusEnum::FROZEN);
+        $agent = new Agent();
+        $agent->setStatus(AgentStatusEnum::FROZEN);
 
-        $this->assertSame(AgentStatusEnum::FROZEN, $this->agent->getStatus());
+        $this->assertSame(AgentStatusEnum::FROZEN, $agent->getStatus());
     }
 
-    public function test_setExpiryDate_with_valid_date(): void
+    public function testSetExpiryDateWithValidDate(): void
     {
         $date = new \DateTimeImmutable('2025-12-31');
-        $this->agent->setExpiryDate($date);
+        $agent = new Agent();
+        $agent->setExpiryDate($date);
 
-        $this->assertSame($date, $this->agent->getExpiryDate());
+        $this->assertSame($date, $agent->getExpiryDate());
     }
 
-    public function test_setExpiryDate_with_null(): void
+    public function testSetExpiryDateWithNull(): void
     {
-        $this->agent->setExpiryDate(null);
+        $agent = new Agent();
+        $agent->setExpiryDate(null);
 
-        $this->assertNull($this->agent->getExpiryDate());
+        $this->assertNull($agent->getExpiryDate());
     }
 
-    public function test_addHotelMapping_adds_new_mapping(): void
+    public function testAddHotelMappingAddsNewMapping(): void
     {
+        $agent = new Agent();
         $mapping = new AgentHotelMapping();
+        $mapping->setCreatedBy('test-user');
 
-        $result = $this->agent->addHotelMapping($mapping);
+        $result = $agent->addHotelMapping($mapping);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertTrue($this->agent->getHotelMappings()->contains($mapping));
-        $this->assertSame($this->agent, $mapping->getAgent());
+        $this->assertSame($agent, $result);
+        $this->assertTrue($agent->getHotelMappings()->contains($mapping));
+        $this->assertSame($agent, $mapping->getAgent());
     }
 
-    public function test_addHotelMapping_does_not_add_duplicate(): void
+    public function testAddHotelMappingDoesNotAddDuplicate(): void
     {
+        $agent = new Agent();
         $mapping = new AgentHotelMapping();
-        $this->agent->addHotelMapping($mapping);
+        $mapping->setCreatedBy('test-user');
+        $agent->addHotelMapping($mapping);
 
-        $this->agent->addHotelMapping($mapping);
+        $agent->addHotelMapping($mapping);
 
-        $this->assertCount(1, $this->agent->getHotelMappings());
+        $this->assertCount(1, $agent->getHotelMappings());
     }
 
-    public function test_removeHotelMapping_removes_existing_mapping(): void
+    public function testRemoveHotelMappingRemovesExistingMapping(): void
     {
+        $agent = new Agent();
         $mapping = new AgentHotelMapping();
-        $this->agent->addHotelMapping($mapping);
+        $mapping->setCreatedBy('test-user');
+        $agent->addHotelMapping($mapping);
 
-        $result = $this->agent->removeHotelMapping($mapping);
+        $result = $agent->removeHotelMapping($mapping);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertFalse($this->agent->getHotelMappings()->contains($mapping));
+        $this->assertSame($agent, $result);
+        $this->assertFalse($agent->getHotelMappings()->contains($mapping));
         $this->assertNull($mapping->getAgent());
     }
 
-    public function test_removeHotelMapping_with_non_existing_mapping(): void
+    public function testRemoveHotelMappingWithNonExistingMapping(): void
     {
+        $agent = new Agent();
         $mapping = new AgentHotelMapping();
+        $mapping->setCreatedBy('test-user');
 
-        $result = $this->agent->removeHotelMapping($mapping);
+        $result = $agent->removeHotelMapping($mapping);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertCount(0, $this->agent->getHotelMappings());
+        $this->assertSame($agent, $result);
+        $this->assertCount(0, $agent->getHotelMappings());
     }
 
-    public function test_addOrder_adds_new_order(): void
+    public function testAddOrderAddsNewOrder(): void
     {
+        $agent = new Agent();
         $order = new Order();
+        $order->setCreatedBy('123');
 
-        $result = $this->agent->addOrder($order);
+        $result = $agent->addOrder($order);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertTrue($this->agent->getOrders()->contains($order));
-        $this->assertSame($this->agent, $order->getAgent());
+        $this->assertSame($agent, $result);
+        $this->assertTrue($agent->getOrders()->contains($order));
+        $this->assertSame($agent, $order->getAgent());
     }
 
-    public function test_removeOrder_removes_existing_order(): void
+    public function testRemoveOrderRemovesExistingOrder(): void
     {
+        $agent = new Agent();
         $order = new Order();
-        $this->agent->addOrder($order);
+        $order->setCreatedBy('123');
+        $agent->addOrder($order);
 
-        $result = $this->agent->removeOrder($order);
+        $result = $agent->removeOrder($order);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertFalse($this->agent->getOrders()->contains($order));
+        $this->assertSame($agent, $result);
+        $this->assertFalse($agent->getOrders()->contains($order));
         $this->assertNull($order->getAgent());
     }
 
-    public function test_addBill_adds_new_bill(): void
+    public function testAddBillAddsNewBill(): void
     {
+        $agent = new Agent();
         $bill = new AgentBill();
+        $bill->setCreatedBy('test-user');
 
-        $result = $this->agent->addBill($bill);
+        $result = $agent->addBill($bill);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertTrue($this->agent->getBills()->contains($bill));
-        $this->assertSame($this->agent, $bill->getAgent());
+        $this->assertSame($agent, $result);
+        $this->assertTrue($agent->getBills()->contains($bill));
+        $this->assertSame($agent, $bill->getAgent());
     }
 
-    public function test_removeBill_removes_existing_bill(): void
+    public function testRemoveBillRemovesExistingBill(): void
     {
+        $agent = new Agent();
         $bill = new AgentBill();
-        $this->agent->addBill($bill);
+        $bill->setCreatedBy('test-user');
+        $agent->addBill($bill);
 
-        $result = $this->agent->removeBill($bill);
+        $result = $agent->removeBill($bill);
 
-        $this->assertSame($this->agent, $result);
-        $this->assertFalse($this->agent->getBills()->contains($bill));
+        $this->assertSame($agent, $result);
+        $this->assertFalse($agent->getBills()->contains($bill));
         $this->assertNull($bill->getAgent());
     }
 
-    public function test_isExpired_returns_false_when_no_expiry_date(): void
+    public function testIsExpiredReturnsFalseWhenNoExpiryDate(): void
     {
-        $this->agent->setExpiryDate(null);
+        $agent = new Agent();
+        $agent->setExpiryDate(null);
 
-        $this->assertFalse($this->agent->isExpired());
+        $this->assertFalse($agent->isExpired());
     }
 
-    public function test_isExpired_returns_true_when_expired(): void
+    public function testIsExpiredReturnsTrueWhenExpired(): void
     {
+        $agent = new Agent();
         $expiredDate = new \DateTimeImmutable('-1 day');
-        $this->agent->setExpiryDate($expiredDate);
+        $agent->setExpiryDate($expiredDate);
 
-        $this->assertTrue($this->agent->isExpired());
+        $this->assertTrue($agent->isExpired());
     }
 
-    public function test_isExpired_returns_false_when_not_expired(): void
+    public function testIsExpiredReturnsFalseWhenNotExpired(): void
     {
+        $agent = new Agent();
         $futureDate = new \DateTimeImmutable('+1 day');
-        $this->agent->setExpiryDate($futureDate);
+        $agent->setExpiryDate($futureDate);
 
-        $this->assertFalse($this->agent->isExpired());
+        $this->assertFalse($agent->isExpired());
     }
 
-    public function test_isActive_returns_true_when_active_and_not_expired(): void
+    public function testIsActiveReturnsTrueWhenActiveAndNotExpired(): void
     {
-        $this->agent->setStatus(AgentStatusEnum::ACTIVE);
-        $this->agent->setExpiryDate(new \DateTimeImmutable('+1 day'));
+        $agent = new Agent();
+        $agent->setStatus(AgentStatusEnum::ACTIVE);
+        $agent->setExpiryDate(new \DateTimeImmutable('+1 day'));
 
-        $this->assertTrue($this->agent->isActive());
+        $this->assertTrue($agent->isActive());
     }
 
-    public function test_isActive_returns_false_when_not_active(): void
+    public function testIsActiveReturnsFalseWhenNotActive(): void
     {
-        $this->agent->setStatus(AgentStatusEnum::FROZEN);
-        $this->agent->setExpiryDate(new \DateTimeImmutable('+1 day'));
+        $agent = new Agent();
+        $agent->setStatus(AgentStatusEnum::FROZEN);
+        $agent->setExpiryDate(new \DateTimeImmutable('+1 day'));
 
-        $this->assertFalse($this->agent->isActive());
+        $this->assertFalse($agent->isActive());
     }
 
-    public function test_isActive_returns_false_when_expired(): void
+    public function testIsActiveReturnsFalseWhenExpired(): void
     {
-        $this->agent->setStatus(AgentStatusEnum::ACTIVE);
-        $this->agent->setExpiryDate(new \DateTimeImmutable('-1 day'));
+        $agent = new Agent();
+        $agent->setStatus(AgentStatusEnum::ACTIVE);
+        $agent->setExpiryDate(new \DateTimeImmutable('-1 day'));
 
-        $this->assertFalse($this->agent->isActive());
+        $this->assertFalse($agent->isActive());
     }
 
-    public function test_isActive_returns_true_when_active_no_expiry(): void
+    public function testIsActiveReturnsTrueWhenActiveNoExpiry(): void
     {
-        $this->agent->setStatus(AgentStatusEnum::ACTIVE);
-        $this->agent->setExpiryDate(null);
+        $agent = new Agent();
+        $agent->setStatus(AgentStatusEnum::ACTIVE);
+        $agent->setExpiryDate(null);
 
-        $this->assertTrue($this->agent->isActive());
+        $this->assertTrue($agent->isActive());
     }
 
-    public function test_setCreateTime_sets_time(): void
+    public function testSetCreateTimeSetsTime(): void
     {
+        $agent = new Agent();
         $time = new \DateTimeImmutable();
-        $this->agent->setCreateTime($time);
+        $agent->setCreateTime($time);
 
-        $this->assertSame($time, $this->agent->getCreateTime());
+        $this->assertSame($time, $agent->getCreateTime());
     }
 
-    public function test_setUpdateTime_sets_time(): void
+    public function testSetUpdateTimeSetsTime(): void
     {
+        $agent = new Agent();
         $time = new \DateTimeImmutable();
-        $this->agent->setUpdateTime($time);
+        $agent->setUpdateTime($time);
 
-        $this->assertSame($time, $this->agent->getUpdateTime());
+        $this->assertSame($time, $agent->getUpdateTime());
     }
 
-    public function test_default_values(): void
+    public function testDefaultValues(): void
     {
         $agent = new Agent();
 

@@ -1,7 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminAction;
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminCrud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -25,13 +29,16 @@ use Tourze\HotelAgentBundle\Service\AgentBillService;
 
 /**
  * 代理账单管理控制器
+ * @extends AbstractCrudController<AgentBill>
  */
-class AgentBillCrudController extends AbstractCrudController
+#[AdminCrud(routePath: '/hotel-agent/agent-bill', routeName: 'hotel_agent_agent_bill')]
+final class AgentBillCrudController extends AbstractCrudController
 {
     public function __construct(
         private readonly AgentBillService $agentBillService,
-        private readonly AdminUrlGenerator $adminUrlGenerator
-    ) {}
+        private readonly AdminUrlGenerator $adminUrlGenerator,
+    ) {
+    }
 
     public static function getEntityFqcn(): string
     {
@@ -49,7 +56,8 @@ class AgentBillCrudController extends AbstractCrudController
             ->setPageTitle('detail', '代理账单详情')
             ->setDefaultSort(['createTime' => 'DESC'])
             ->setPaginatorPageSize(20)
-            ->showEntityActionsInlined();
+            ->showEntityActionsInlined()
+        ;
     }
 
     public function configureFields(string $pageName): iterable
@@ -57,14 +65,14 @@ class AgentBillCrudController extends AbstractCrudController
         return [
             AssociationField::new('agent', '代理商')
                 ->setFormTypeOptions([
-                    'choice_label' => 'companyName'
+                    'choice_label' => 'companyName',
                 ])
                 ->setCrudController(AgentCrudController::class),
 
             TextField::new('billMonth', '账单月份')
                 ->setHelp('格式：YYYY-MM')
                 ->setFormTypeOptions([
-                    'attr' => ['placeholder' => '2024-01']
+                    'attr' => ['placeholder' => '2024-01'],
                 ]),
 
             IntegerField::new('orderCount', '订单数量')
@@ -76,7 +84,7 @@ class AgentBillCrudController extends AbstractCrudController
 
             TextField::new('commissionRate', '佣金比例')
                 ->setFormTypeOptions([
-                    'attr' => ['placeholder' => '10.00']
+                    'attr' => ['placeholder' => '10.00'],
                 ])
                 ->setHelp('百分比，如：10.00')
                 ->hideOnForm(),
@@ -95,7 +103,7 @@ class AgentBillCrudController extends AbstractCrudController
                 ->renderAsBadges([
                     BillStatusEnum::PENDING->value => 'warning',
                     BillStatusEnum::CONFIRMED->value => 'info',
-                    BillStatusEnum::PAID->value => 'success'
+                    BillStatusEnum::PAID->value => 'success',
                 ]),
 
             DateTimeField::new('confirmTime', '确认时间')
@@ -115,7 +123,7 @@ class AgentBillCrudController extends AbstractCrudController
 
             DateTimeField::new('updateTime', '更新时间')
                 ->hideOnForm()
-                ->hideOnIndex()
+                ->hideOnIndex(),
         ];
     }
 
@@ -124,27 +132,32 @@ class AgentBillCrudController extends AbstractCrudController
         $confirmAction = Action::new('confirm', '确认账单', 'fa fa-check')
             ->linkToCrudAction('confirmBill')
             ->displayIf(static function (AgentBill $bill) {
-                return $bill->getStatus() === BillStatusEnum::PENDING;
+                return BillStatusEnum::PENDING === $bill->getStatus();
             })
-            ->setCssClass('btn btn-success');
+            ->setCssClass('btn btn-success')
+        ;
 
         $recalculateAction = Action::new('recalculate', '重新计算', 'fa fa-calculator')
             ->linkToCrudAction('recalculateBill')
             ->displayIf(static function (AgentBill $bill) {
-                return $bill->getStatus() !== BillStatusEnum::PAID;
+                return BillStatusEnum::PAID !== $bill->getStatus();
             })
-            ->setCssClass('btn btn-warning');
+            ->setCssClass('btn btn-warning')
+        ;
 
         $generateBatchBillsAction = Action::new('generateBatchBills', '批量生成账单', 'fa fa-plus-circle')
             ->linkToCrudAction('generateBatchBills')
             ->createAsGlobalAction()
-            ->setCssClass('btn btn-primary');
+            ->setCssClass('btn btn-primary')
+        ;
 
         $viewPaymentsAction = Action::new('viewPayments', '查看支付', 'fa fa-credit-card')
             ->linkToCrudAction('viewPayments')
-            ->setCssClass('btn btn-info');
+            ->setCssClass('btn btn-info')
+        ;
 
         return $actions
+            // 添加自定义 actions
             ->add(Crud::PAGE_INDEX, $confirmAction)
             ->add(Crud::PAGE_INDEX, $recalculateAction)
             ->add(Crud::PAGE_INDEX, $viewPaymentsAction)
@@ -152,16 +165,7 @@ class AgentBillCrudController extends AbstractCrudController
             ->add(Crud::PAGE_DETAIL, $confirmAction)
             ->add(Crud::PAGE_DETAIL, $recalculateAction)
             ->add(Crud::PAGE_DETAIL, $viewPaymentsAction)
-            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
-                return $action->displayIf(static function (AgentBill $bill) {
-                    return $bill->getStatus() === BillStatusEnum::PENDING;
-                });
-            })
-            ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
-                return $action->displayIf(static function (AgentBill $bill) {
-                    return $bill->getStatus() === BillStatusEnum::PENDING;
-                });
-            });
+        ;
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -171,23 +175,26 @@ class AgentBillCrudController extends AbstractCrudController
             ->add(ChoiceFilter::new('status')->setChoices(BillStatusEnum::cases()))
             ->add('billMonth')
             ->add(ChoiceFilter::new('settlementType')->setChoices(SettlementTypeEnum::cases()))
-            ->add(DateTimeFilter::new('createTime'));
+            ->add(DateTimeFilter::new('createTime'))
+        ;
     }
 
     /**
      * 确认账单
      */
+    #[AdminAction(routeName: 'admin_agent_bill_confirm', routePath: '/agent-bill/confirm')]
     public function confirmBill(AdminContext $context): Response
     {
         $bill = $context->getEntity()->getInstance();
-        
+
         if (!$bill instanceof AgentBill) {
             $this->addFlash('danger', '无效的账单');
+
             return $this->redirectToRoute('admin');
         }
 
         $success = $this->agentBillService->confirmBill($bill);
-        
+
         if ($success) {
             $this->addFlash('success', '账单已确认');
         } else {
@@ -203,12 +210,14 @@ class AgentBillCrudController extends AbstractCrudController
     /**
      * 重新计算账单
      */
+    #[AdminAction(routeName: 'admin_agent_bill_recalculate', routePath: '/agent-bill/recalculate')]
     public function recalculateBill(AdminContext $context): Response
     {
         $bill = $context->getEntity()->getInstance();
-        
+
         if (!$bill instanceof AgentBill) {
             $this->addFlash('danger', '无效的账单');
+
             return $this->redirectToRoute('admin');
         }
 
@@ -228,14 +237,15 @@ class AgentBillCrudController extends AbstractCrudController
     /**
      * 批量生成账单
      */
+    #[AdminAction(routeName: 'admin_agent_bill_generate_batch', routePath: '/agent-bill/generate-batch')]
     public function generateBatchBills(AdminContext $context): Response
     {
         $request = $context->getRequest();
-        
+
         if ($request->isMethod('POST')) {
             $billMonth = $request->request->get('billMonth');
-            
-            if (empty($billMonth)) {
+
+            if (!is_string($billMonth) || '' === $billMonth) {
                 $this->addFlash('danger', '请输入账单月份');
             } else {
                 try {
@@ -253,20 +263,22 @@ class AgentBillCrudController extends AbstractCrudController
         }
 
         // 显示表单
-        return $this->render('admin/agent_bill/generate_batch.html.twig', [
-            'current_month' => date('Y-m')
+        return $this->render('@HotelAgent/admin/agent_bill/generate_batch.html.twig', [
+            'current_month' => date('Y-m'),
         ]);
     }
 
     /**
      * 查看支付记录
      */
+    #[AdminAction(routeName: 'admin_agent_bill_view_payments', routePath: '/agent-bill/view-payments')]
     public function viewPayments(AdminContext $context): Response
     {
         $bill = $context->getEntity()->getInstance();
-        
+
         if (!$bill instanceof AgentBill) {
             $this->addFlash('danger', '无效的账单');
+
             return $this->redirectToRoute('admin');
         }
 
@@ -280,13 +292,14 @@ class AgentBillCrudController extends AbstractCrudController
     /**
      * 自定义新建表单
      */
-    public function new(AdminContext $context): Response
+    public function new(AdminContext $context)
     {
         $response = parent::new($context);
-        
+
+        // 处理成功创建后的计算逻辑
         if ($context->getRequest()->isMethod('POST')) {
             $bill = $context->getEntity()->getInstance();
-            if ($bill instanceof AgentBill && null !== $bill->getId()) {
+            if ($bill instanceof AgentBill && $bill->getId() > 0) {
                 // 新建成功后自动计算账单数据
                 try {
                     $this->agentBillService->recalculateBill($bill);
@@ -295,23 +308,25 @@ class AgentBillCrudController extends AbstractCrudController
                 }
             }
         }
-        
+
         return $response;
     }
 
     /**
      * 账单统计
      */
+    #[AdminAction(routeName: 'admin_agent_bill_statistics', routePath: '/agent-bill/statistics')]
     public function billStatistics(AdminContext $context): Response
     {
         $request = $context->getRequest();
         $billMonth = $request->query->get('billMonth', date('Y-m'));
-        
+        assert(is_string($billMonth));
+
         $statistics = $this->agentBillService->getBillStatistics($billMonth);
-        
-        return $this->render('admin/agent_bill/statistics.html.twig', [
+
+        return $this->render('@HotelAgent/admin/agent_bill/statistics.html.twig', [
             'statistics' => $statistics,
-            'billMonth' => $billMonth
+            'billMonth' => $billMonth,
         ]);
     }
-} 
+}

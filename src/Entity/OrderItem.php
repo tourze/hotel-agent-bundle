@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Entity;
 
 use Brick\Math\BigDecimal;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Stringable;
 use Symfony\Component\Validator\Constraints as Assert;
+use Tourze\DoctrineIndexedBundle\Attribute\IndexColumn;
 use Tourze\DoctrineTimestampBundle\Traits\TimestampableAware;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
 use Tourze\HotelAgentBundle\Repository\OrderItemRepository;
@@ -18,69 +20,90 @@ use Tourze\HotelProfileBundle\Entity\RoomType;
 #[ORM\Entity(repositoryClass: OrderItemRepository::class)]
 #[ORM\Table(name: 'order_item', options: ['comment' => '订单明细表'])]
 #[ORM\UniqueConstraint(name: 'order_item_unique_daily_inventory', columns: ['daily_inventory_id'])]
-#[ORM\Index(name: 'order_item_idx_order_id', columns: ['order_id'])]
 #[ORM\Index(name: 'order_item_idx_hotel_roomtype', columns: ['hotel_id', 'room_type_id'])]
 #[ORM\Index(name: 'order_item_idx_date_range', columns: ['check_in_date', 'check_out_date'])]
-#[ORM\Index(name: 'order_item_idx_status', columns: ['status'])]
-#[ORM\Index(name: 'order_item_idx_daily_inventory', columns: ['daily_inventory_id'])]
-#[ORM\Index(name: 'order_item_idx_contract', columns: ['contract_id'])]
-class OrderItem implements Stringable
+class OrderItem implements \Stringable
 {
     use TimestampableAware;
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column(type: Types::BIGINT, options: ['comment' => '主键ID'])]
-    private ?int $id = null;
+    private int $id = 0;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'order_id', nullable: false)]
+    #[Assert\NotNull]
     private ?Order $order = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'hotel_id', nullable: false)]
+    #[Assert\NotNull]
     private ?Hotel $hotel = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'room_type_id', nullable: false)]
+    #[Assert\NotNull]
     private ?RoomType $roomType = null;
 
     #[ORM\Column(type: Types::DATE_IMMUTABLE, options: ['comment' => '入住日期'])]
+    #[Assert\NotNull]
+    #[Assert\Type(type: \DateTimeImmutable::class)]
     private ?\DateTimeImmutable $checkInDate = null;
 
     #[ORM\Column(type: Types::DATE_IMMUTABLE, options: ['comment' => '退房日期'])]
+    #[Assert\NotNull]
+    #[Assert\Type(type: \DateTimeImmutable::class)]
+    #[Assert\GreaterThan(propertyPath: 'checkInDate')]
     private ?\DateTimeImmutable $checkOutDate = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['comment' => '销售单价'])]
     #[Assert\PositiveOrZero]
+    #[Assert\Length(max: 10)]
     private string $unitPrice = '0.00';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['comment' => '采购成本价'])]
     #[Assert\PositiveOrZero]
+    #[Assert\Length(max: 10)]
     private string $costPrice = '0.00';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['comment' => '小计金额'])]
     #[Assert\PositiveOrZero]
+    #[Assert\Length(max: 10)]
     private string $amount = '0.00';
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['comment' => '利润金额'])]
+    #[Assert\Type(type: 'numeric')]
+    #[Assert\Length(max: 10)]
     private string $profit = '0.00';
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(name: 'contract_id', nullable: true)]
     private ?HotelContract $contract = null;
 
-    #[ORM\ManyToOne]
+    #[ORM\ManyToOne(cascade: ['persist'])]
     #[ORM\JoinColumn(name: 'daily_inventory_id', nullable: true)]
     private ?DailyInventory $dailyInventory = null;
 
     #[ORM\Column(type: Types::STRING, length: 20, enumType: OrderItemStatusEnum::class, options: ['comment' => '状态'])]
+    #[Assert\NotNull]
+    #[Assert\Choice(callback: [OrderItemStatusEnum::class, 'cases'])]
+    #[IndexColumn]
     private OrderItemStatusEnum $status = OrderItemStatusEnum::PENDING;
 
+    /**
+     * @var array<array<string, mixed>>|null
+     */
     #[ORM\Column(type: Types::JSON, nullable: true, options: ['comment' => '合同切换历史'])]
+    #[Assert\Type(type: 'array')]
     private ?array $contractChangeHistory = [];
 
     #[ORM\Column(type: Types::TEXT, nullable: true, options: ['comment' => '合同切换原因'])]
-    private ?string $contractChangeReason = null;#[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '最后修改人ID'])]
+    #[Assert\Length(max: 65535)]
+    private ?string $contractChangeReason = null;
+
+    #[ORM\Column(type: Types::BIGINT, nullable: true, options: ['comment' => '最后修改人ID'])]
+    #[Assert\Positive]
     private ?int $lastModifiedBy = null;
 
     public function __construct()
@@ -94,7 +117,7 @@ class OrderItem implements Stringable
         $roomTypeName = isset($this->roomType) ? $this->roomType->getName() : 'Unknown';
         $dateRange = '';
 
-        if (isset($this->checkInDate) && isset($this->checkOutDate)) {
+        if (isset($this->checkInDate, $this->checkOutDate)) {
             $dateRange = sprintf(
                 '%s - %s',
                 $this->checkInDate->format('Y-m-d'),
@@ -105,9 +128,18 @@ class OrderItem implements Stringable
         return sprintf('%s, %s, %s', $hotelName, $roomTypeName, $dateRange);
     }
 
-    public function getId(): ?int
+    public function getId(): int
     {
         return $this->id;
+    }
+
+    /**
+     * 检查实体是否已经被持久化（有有效ID）
+     */
+    public function isPersisted(): bool
+    {
+        // 防御性检查：处理Doctrine懒加载可能导致的未初始化场景
+        return isset($this->id) && $this->id > 0;
     }
 
     public function getOrder(): ?Order
@@ -115,10 +147,9 @@ class OrderItem implements Stringable
         return $this->order;
     }
 
-    public function setOrder(?Order $order): self
+    public function setOrder(?Order $order): void
     {
         $this->order = $order;
-        return $this;
     }
 
     public function getHotel(): ?Hotel
@@ -126,10 +157,9 @@ class OrderItem implements Stringable
         return $this->hotel;
     }
 
-    public function setHotel(?Hotel $hotel): self
+    public function setHotel(?Hotel $hotel): void
     {
         $this->hotel = $hotel;
-        return $this;
     }
 
     public function getRoomType(): ?RoomType
@@ -137,10 +167,9 @@ class OrderItem implements Stringable
         return $this->roomType;
     }
 
-    public function setRoomType(?RoomType $roomType): self
+    public function setRoomType(?RoomType $roomType): void
     {
         $this->roomType = $roomType;
-        return $this;
     }
 
     public function getCheckInDate(): ?\DateTimeImmutable
@@ -148,11 +177,10 @@ class OrderItem implements Stringable
         return $this->checkInDate;
     }
 
-    public function setCheckInDate(?\DateTimeImmutable $checkInDate): self
+    public function setCheckInDate(?\DateTimeImmutable $checkInDate): void
     {
         $this->checkInDate = $checkInDate;
         $this->calculateAmount();
-        return $this;
     }
 
     public function getCheckOutDate(): ?\DateTimeImmutable
@@ -160,11 +188,10 @@ class OrderItem implements Stringable
         return $this->checkOutDate;
     }
 
-    public function setCheckOutDate(?\DateTimeImmutable $checkOutDate): self
+    public function setCheckOutDate(?\DateTimeImmutable $checkOutDate): void
     {
         $this->checkOutDate = $checkOutDate;
         $this->calculateAmount();
-        return $this;
     }
 
     public function getUnitPrice(): string
@@ -172,11 +199,10 @@ class OrderItem implements Stringable
         return $this->unitPrice;
     }
 
-    public function setUnitPrice(string $unitPrice): self
+    public function setUnitPrice(string $unitPrice): void
     {
         $this->unitPrice = $unitPrice;
         $this->calculateAmount();
-        return $this;
     }
 
     public function getCostPrice(): string
@@ -184,11 +210,10 @@ class OrderItem implements Stringable
         return $this->costPrice;
     }
 
-    public function setCostPrice(string $costPrice): self
+    public function setCostPrice(string $costPrice): void
     {
         $this->costPrice = $costPrice;
         $this->calculateProfit();
-        return $this;
     }
 
     public function getAmount(): string
@@ -196,11 +221,10 @@ class OrderItem implements Stringable
         return $this->amount;
     }
 
-    public function setAmount(string $amount): self
+    public function setAmount(string $amount): void
     {
         $this->amount = $amount;
         $this->calculateProfit();
-        return $this;
     }
 
     public function getProfit(): string
@@ -208,10 +232,9 @@ class OrderItem implements Stringable
         return $this->profit;
     }
 
-    public function setProfit(string $profit): self
+    public function setProfit(string $profit): void
     {
         $this->profit = $profit;
-        return $this;
     }
 
     public function getContract(): ?HotelContract
@@ -219,10 +242,9 @@ class OrderItem implements Stringable
         return $this->contract;
     }
 
-    public function setContract(?HotelContract $contract): self
+    public function setContract(?HotelContract $contract): void
     {
         $this->contract = $contract;
-        return $this;
     }
 
     public function getDailyInventory(): ?DailyInventory
@@ -230,10 +252,9 @@ class OrderItem implements Stringable
         return $this->dailyInventory;
     }
 
-    public function setDailyInventory(?DailyInventory $dailyInventory): self
+    public function setDailyInventory(?DailyInventory $dailyInventory): void
     {
         $this->dailyInventory = $dailyInventory;
-        return $this;
     }
 
     public function getStatus(): OrderItemStatusEnum
@@ -241,21 +262,25 @@ class OrderItem implements Stringable
         return $this->status;
     }
 
-    public function setStatus(OrderItemStatusEnum $status): self
+    public function setStatus(OrderItemStatusEnum $status): void
     {
         $this->status = $status;
-        return $this;
     }
 
+    /**
+     * @return array<array<string, mixed>>|null
+     */
     public function getContractChangeHistory(): ?array
     {
         return $this->contractChangeHistory;
     }
 
-    public function setContractChangeHistory(?array $contractChangeHistory): self
+    /**
+     * @param array<array<string, mixed>>|null $contractChangeHistory
+     */
+    public function setContractChangeHistory(?array $contractChangeHistory): void
     {
         $this->contractChangeHistory = $contractChangeHistory;
-        return $this;
     }
 
     public function getContractChangeReason(): ?string
@@ -263,19 +288,19 @@ class OrderItem implements Stringable
         return $this->contractChangeReason;
     }
 
-    public function setContractChangeReason(?string $contractChangeReason): self
+    public function setContractChangeReason(?string $contractChangeReason): void
     {
         $this->contractChangeReason = $contractChangeReason;
-        return $this;
-    }public function getLastModifiedBy(): ?int
+    }
+
+    public function getLastModifiedBy(): ?int
     {
         return $this->lastModifiedBy;
     }
 
-    public function setLastModifiedBy(?int $lastModifiedBy): self
+    public function setLastModifiedBy(?int $lastModifiedBy): void
     {
         $this->lastModifiedBy = $lastModifiedBy;
-        return $this;
     }
 
     /**
@@ -330,7 +355,16 @@ class OrderItem implements Stringable
 
         // 计算日期差异（以天为单位）
         $interval = $this->checkInDate->diff($this->checkOutDate);
-        return $interval->days;
+
+        return false !== $interval->days ? $interval->days : 0;
+    }
+
+    /**
+     * 获取入住天数（公共方法，用于EasyAdmin显示）
+     */
+    public function getNights(): int
+    {
+        return $this->calculateNights();
     }
 
     /**
@@ -351,6 +385,7 @@ class OrderItem implements Stringable
     public function cancel(): self
     {
         $this->status = OrderItemStatusEnum::CANCELED;
+
         return $this;
     }
 
@@ -360,6 +395,7 @@ class OrderItem implements Stringable
     public function confirm(): self
     {
         $this->status = OrderItemStatusEnum::CONFIRMED;
+
         return $this;
     }
 
@@ -369,5 +405,7 @@ class OrderItem implements Stringable
     public function complete(): self
     {
         $this->status = OrderItemStatusEnum::COMPLETED;
+
         return $this;
-    }}
+    }
+}

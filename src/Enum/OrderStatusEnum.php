@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -18,16 +20,22 @@ enum OrderStatusEnum: string implements Labelable, Itemable, Selectable
 
     case PENDING = 'pending';
     case CONFIRMED = 'confirmed';
+    case COMPLETED = 'completed';
     case CANCELED = 'canceled';
     case CLOSED = 'closed';
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::PENDING => '待确认',
             self::CONFIRMED => '已确认',
+            self::COMPLETED => '已完成',
             self::CANCELED => '已取消',
             self::CLOSED => '已关闭',
         };
     }
+
+    /**
+     * 生成枚举下拉选项
+     */
 }

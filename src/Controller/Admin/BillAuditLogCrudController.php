@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Controller\Admin;
 
+use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminCrud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
@@ -15,13 +18,16 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
+use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Entity\BillAuditLog;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
 
 /**
  * 账单审核日志管理控制器
+ * @extends AbstractCrudController<BillAuditLog>
  */
-class BillAuditLogCrudController extends AbstractCrudController
+#[AdminCrud(routePath: '/hotel-agent/bill-audit-log', routeName: 'hotel_agent_bill_audit_log')]
+final class BillAuditLogCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -37,7 +43,8 @@ class BillAuditLogCrudController extends AbstractCrudController
             ->setPageTitle('detail', '审核日志详情')
             ->setDefaultSort(['createTime' => 'DESC'])
             ->setPaginatorPageSize(30)
-            ->showEntityActionsInlined();
+            ->showEntityActionsInlined()
+        ;
     }
 
     public function configureFields(string $pageName): iterable
@@ -45,9 +52,12 @@ class BillAuditLogCrudController extends AbstractCrudController
         return [
             AssociationField::new('agentBill', '关联账单')
                 ->setFormTypeOptions([
-                    'choice_label' => function ($agentBill) {
-                        return sprintf('%s (%s)', $agentBill->getBillMonth(), $agentBill->getAgent()->getCompanyName());
-                    }
+                    'choice_label' => function (AgentBill $agentBill): string {
+                        $agent = $agentBill->getAgent();
+                        $companyName = null !== $agent ? $agent->getCompanyName() : 'Unknown Agent';
+
+                        return sprintf('%s (%s)', $agentBill->getBillMonth(), $companyName);
+                    },
                 ])
                 ->setCrudController(AgentBillCrudController::class),
 
@@ -59,7 +69,7 @@ class BillAuditLogCrudController extends AbstractCrudController
                 ->renderAsBadges([
                     BillStatusEnum::PENDING->value => 'warning',
                     BillStatusEnum::CONFIRMED->value => 'info',
-                    BillStatusEnum::PAID->value => 'success'
+                    BillStatusEnum::PAID->value => 'success',
                 ])
                 ->hideOnIndex(),
 
@@ -68,7 +78,7 @@ class BillAuditLogCrudController extends AbstractCrudController
                 ->renderAsBadges([
                     BillStatusEnum::PENDING->value => 'warning',
                     BillStatusEnum::CONFIRMED->value => 'info',
-                    BillStatusEnum::PAID->value => 'success'
+                    BillStatusEnum::PAID->value => 'success',
                 ])
                 ->hideOnIndex(),
 
@@ -85,7 +95,7 @@ class BillAuditLogCrudController extends AbstractCrudController
                 ->hideOnIndex(),
 
             DateTimeField::new('createTime', '操作时间')
-                ->setFormat('yyyy-MM-dd HH:mm:ss')
+                ->setFormat('yyyy-MM-dd HH:mm:ss'),
         ];
     }
 
@@ -93,7 +103,8 @@ class BillAuditLogCrudController extends AbstractCrudController
     {
         return $actions
             ->disable(Action::NEW, Action::EDIT, Action::DELETE)
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+        ;
     }
 
     public function configureFilters(Filters $filters): Filters
@@ -104,6 +115,7 @@ class BillAuditLogCrudController extends AbstractCrudController
             ->add(ChoiceFilter::new('fromStatus')->setChoices(BillStatusEnum::cases()))
             ->add(ChoiceFilter::new('toStatus')->setChoices(BillStatusEnum::cases()))
             ->add('operatorName')
-            ->add(DateTimeFilter::new('createTime'));
+            ->add(DateTimeFilter::new('createTime'))
+        ;
     }
-} 
+}

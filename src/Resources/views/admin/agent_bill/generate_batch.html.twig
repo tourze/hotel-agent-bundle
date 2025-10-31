@@ -1,0 +1,102 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}批量生成代理账单{% endblock %}
+
+{% block main %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">批量生成参数</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="billMonth">账单月份：</label>
+                            <input
+                                type="month"
+                                id="billMonth"
+                                name="billMonth"
+                                class="form-control"
+                                value="{{ billMonth|default('now'|date('Y-m')) }}"
+                                required
+                            >
+                            <small class="form-text text-muted">选择要生成账单的月份</small>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="agentLevel">代理等级：</label>
+                            <select id="agentLevel" name="agentLevel" class="form-control">
+                                <option value="">全部等级</option>
+                                <option value="GOLD">黄金代理</option>
+                                <option value="SILVER">白银代理</option>
+                                <option value="BRONZE">青铜代理</option>
+                            </select>
+                            <small class="form-text text-muted">可选择特定等级的代理</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group">
+                            <div class="form-check">
+                                <input
+                                    type="checkbox"
+                                    id="overwriteExisting"
+                                    name="overwriteExisting"
+                                    class="form-check-input"
+                                    value="1"
+                                >
+                                <label class="form-check-label" for="overwriteExisting">
+                                    覆盖已存在的账单
+                                </label>
+                                <small class="form-text text-muted">选中此项将重新生成已存在的账单</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa fa-play"></i> 开始生成
+                    </button>
+                    <a href="{{ ea_url().setAction('index') }}" class="btn btn-secondary ml-2">
+                        <i class="fa fa-arrow-left"></i> 返回列表
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if result is defined %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title">生成结果</h5>
+            </div>
+            <div class="card-body">
+                {% if result.success %}
+                    <div class="alert alert-success">
+                        <i class="fa fa-check-circle"></i>
+                        批量生成完成！共生成 {{ result.count }} 条账单记录。
+                    </div>
+                {% else %}
+                    <div class="alert alert-danger">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        生成失败：{{ result.error }}
+                    </div>
+                {% endif %}
+
+                {% if result.details is defined and result.details %}
+                    <h6>详细信息：</h6>
+                    <ul>
+                        {% for detail in result.details %}
+                            <li>{{ detail }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}

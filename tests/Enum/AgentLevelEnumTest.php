@@ -1,74 +1,80 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Enum;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
 use Tourze\HotelAgentBundle\Enum\AgentLevelEnum;
+use Tourze\PHPUnitEnum\AbstractEnumTestCase;
 
-class AgentLevelEnumTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(AgentLevelEnum::class)]
+final class AgentLevelEnumTest extends AbstractEnumTestCase
 {
-    public function test_enum_values(): void
+    public function testEnumValues(): void
     {
         $this->assertSame('a', AgentLevelEnum::A->value);
         $this->assertSame('b', AgentLevelEnum::B->value);
         $this->assertSame('c', AgentLevelEnum::C->value);
     }
 
-    public function test_getLabel_returns_correct_labels(): void
+    public function testGetLabelReturnsCorrectLabels(): void
     {
         $this->assertSame('A级', AgentLevelEnum::A->getLabel());
         $this->assertSame('B级', AgentLevelEnum::B->getLabel());
         $this->assertSame('C级', AgentLevelEnum::C->getLabel());
     }
 
-    public function test_cases_returns_all_enum_cases(): void
+    public function testCasesReturnsAllEnumCases(): void
     {
         $cases = AgentLevelEnum::cases();
-        
+
         $this->assertCount(3, $cases);
         $this->assertContains(AgentLevelEnum::A, $cases);
         $this->assertContains(AgentLevelEnum::B, $cases);
         $this->assertContains(AgentLevelEnum::C, $cases);
     }
 
-    public function test_from_creates_enum_from_value(): void
+    public function testFromCreatesEnumFromValue(): void
     {
         $this->assertSame(AgentLevelEnum::A, AgentLevelEnum::from('a'));
         $this->assertSame(AgentLevelEnum::B, AgentLevelEnum::from('b'));
         $this->assertSame(AgentLevelEnum::C, AgentLevelEnum::from('c'));
     }
 
-    public function test_from_throws_exception_for_invalid_value(): void
+    public function testFromThrowsExceptionForInvalidValue(): void
     {
         $this->expectException(\ValueError::class);
-        
+
         AgentLevelEnum::from('invalid');
     }
 
-    public function test_tryFrom_returns_null_for_invalid_value(): void
+    public function testTryFromReturnsNullForInvalidValue(): void
     {
-        $this->assertNull(AgentLevelEnum::tryFrom('invalid'));
-        $this->assertNull(AgentLevelEnum::tryFrom(''));
-        $this->assertNull(AgentLevelEnum::tryFrom('d'));
+        $this->assertSame(null, AgentLevelEnum::tryFrom('invalid'));
+        $this->assertSame(null, AgentLevelEnum::tryFrom(''));
+        $this->assertSame(null, AgentLevelEnum::tryFrom('d'));
     }
 
-    public function test_tryFrom_returns_enum_for_valid_value(): void
+    public function testTryFromReturnsEnumForValidValue(): void
     {
         $this->assertSame(AgentLevelEnum::A, AgentLevelEnum::tryFrom('a'));
         $this->assertSame(AgentLevelEnum::B, AgentLevelEnum::tryFrom('b'));
         $this->assertSame(AgentLevelEnum::C, AgentLevelEnum::tryFrom('c'));
     }
 
-    public function test_implements_required_interfaces(): void
+    public function testImplementsRequiredInterfaces(): void
     {
         $enum = AgentLevelEnum::A;
-        
-        $this->assertInstanceOf(\Tourze\EnumExtra\Labelable::class, $enum);
-        $this->assertInstanceOf(\Tourze\EnumExtra\Itemable::class, $enum);
-        $this->assertInstanceOf(\Tourze\EnumExtra\Selectable::class, $enum);
+
+        // 验证接口方法正常工作
+        $this->assertSame('A级', $enum->getLabel());
     }
 
-    public function test_items_returns_array_with_labels(): void
+    public function testItemsReturnsArrayWithLabels(): void
     {
         $items = [];
         foreach (AgentLevelEnum::cases() as $case) {
@@ -84,7 +90,7 @@ class AgentLevelEnumTest extends TestCase
         $this->assertSame($expected, $items);
     }
 
-    public function test_all_enum_cases_have_labels(): void
+    public function testAllEnumCasesHaveLabels(): void
     {
         foreach (AgentLevelEnum::cases() as $case) {
             $label = $case->getLabel();
@@ -92,19 +98,67 @@ class AgentLevelEnumTest extends TestCase
         }
     }
 
-    public function test_enum_case_consistency(): void
+    public function testEnumCaseConsistency(): void
     {
         $cases = AgentLevelEnum::cases();
-        $values = array_map(fn($case) => $case->value, $cases);
-        $labels = array_map(fn($case) => $case->getLabel(), $cases);
-        
+        $values = array_map(fn ($case) => $case->value, $cases);
+        $labels = array_map(fn ($case) => $case->getLabel(), $cases);
+
         // 确保没有重复的值
         $this->assertSame(array_unique($values), $values);
-        
+
         // 确保没有重复的标签
         $this->assertSame(array_unique($labels), $labels);
-        
+
         // 确保值和标签的数量一致
         $this->assertSame(count($values), count($labels));
     }
-} 
+
+    public function testToArrayReturnsCorrectStructure(): void
+    {
+        $expected = [
+            'value' => 'a',
+            'label' => 'A级',
+        ];
+
+        $this->assertSame($expected, AgentLevelEnum::A->toArray());
+    }
+
+    public function testToSelectItemReturnsCorrectStructure(): void
+    {
+        $expected = [
+            'label' => 'A级',
+            'text' => 'A级',
+            'value' => 'a',
+            'name' => 'A级',
+        ];
+
+        $this->assertSame($expected, AgentLevelEnum::A->toSelectItem());
+    }
+
+    public function testGenOptionsReturnsAllEnumItems(): void
+    {
+        $expected = [
+            [
+                'label' => 'A级',
+                'text' => 'A级',
+                'value' => 'a',
+                'name' => 'A级',
+            ],
+            [
+                'label' => 'B级',
+                'text' => 'B级',
+                'value' => 'b',
+                'name' => 'B级',
+            ],
+            [
+                'label' => 'C级',
+                'text' => 'C级',
+                'value' => 'c',
+                'name' => 'C级',
+            ],
+        ];
+
+        $this->assertSame($expected, AgentLevelEnum::genOptions());
+    }
+}

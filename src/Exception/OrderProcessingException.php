@@ -7,4 +7,6 @@ namespace Tourze\HotelAgentBundle\Exception;
 /**
  * 订单处理异常
  */
-class OrderProcessingException extends HotelAgentException {}
+class OrderProcessingException extends HotelAgentException
+{
+}

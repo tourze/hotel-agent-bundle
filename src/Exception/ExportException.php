@@ -7,4 +7,6 @@ namespace Tourze\HotelAgentBundle\Exception;
 /**
  * 导出异常
  */
-class ExportException extends HotelAgentException {}
+class ExportException extends HotelAgentException
+{
+}

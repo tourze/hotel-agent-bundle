@@ -1,38 +1,51 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
-use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Attribute\WithMonologChannel;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Entity\OrderItem;
 use Tourze\HotelAgentBundle\Enum\OrderSourceEnum;
 use Tourze\HotelAgentBundle\Enum\OrderStatusEnum;
 use Tourze\HotelAgentBundle\Exception\OrderImportException;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
-use Tourze\HotelProfileBundle\Repository\HotelRepository;
-use Tourze\HotelProfileBundle\Repository\RoomTypeRepository;
+use Tourze\HotelAgentBundle\Repository\OrderRepository;
+use Tourze\HotelProfileBundle\Entity\Hotel;
+use Tourze\HotelProfileBundle\Entity\RoomType;
+use Tourze\HotelProfileBundle\Service\HotelService;
+use Tourze\HotelProfileBundle\Service\RoomTypeService;
 
 /**
  * 订单导入服务
  */
-class OrderImportService
+#[WithMonologChannel(channel: 'hotel_agent')]
+readonly class OrderImportService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger,
-        private readonly AgentRepository $agentRepository,
-        private readonly HotelRepository $hotelRepository,
-        private readonly RoomTypeRepository $roomTypeRepository,
-        private readonly string $uploadsDirectory = '/tmp'
-    ) {}
+        private EntityManagerInterface $entityManager,
+        private LoggerInterface $logger,
+        private AgentRepository $agentRepository,
+        private OrderRepository $orderRepository,
+        private HotelService $hotelService,
+        private RoomTypeService $roomTypeService,
+        private string $uploadsDirectory = '/tmp',
+    ) {
+    }
 
     /**
      * 从Excel文件导入订单
+     *
+     * @return array<string, mixed>
      */
     public function importFromExcel(UploadedFile $file, int $operatorId): array
     {
@@ -59,7 +72,7 @@ class OrderImportService
             $this->entityManager->beginTransaction();
 
             // 从第2行开始读取数据（第1行为标题）
-            for ($row = 2; $row <= $highestRow; $row++) {
+            for ($row = 2; $row <= $highestRow; ++$row) {
                 try {
                     $rowData = $this->parseRowData($worksheet, $row);
 
@@ -69,9 +82,9 @@ class OrderImportService
 
                     $order = $this->createOrderFromRowData($rowData, $operatorId);
                     $this->entityManager->persist($order);
-                    $successCount++;
+                    ++$successCount;
                 } catch (\Throwable $e) {
-                    $errorCount++;
+                    ++$errorCount;
                     $errors[] = "第 {$row} 行导入失败: " . $e->getMessage();
                     $this->logger->warning('订单导入失败', [
                         'row' => $row,
@@ -113,30 +126,41 @@ class OrderImportService
 
     /**
      * 解析行数据
+     * @return array<string, mixed>
      */
-    private function parseRowData($worksheet, int $row): array
+    private function parseRowData(Worksheet $worksheet, int $row): array
     {
+        $agentCodeVal = $worksheet->getCell("A{$row}")->getValue();
+        $hotelNameVal = $worksheet->getCell("B{$row}")->getValue();
+        $roomTypeNameVal = $worksheet->getCell("C{$row}")->getValue();
+        $roomCountVal = $worksheet->getCell("F{$row}")->getValue();
+        $unitPriceVal = $worksheet->getCell("G{$row}")->getValue();
+        $remarkVal = $worksheet->getCell("H{$row}")->getValue();
+
         return [
-            'agent_code' => trim((string) ($worksheet->getCell("A{$row}")->getValue() ?? '')),
-            'hotel_name' => trim((string) ($worksheet->getCell("B{$row}")->getValue() ?? '')),
-            'room_type_name' => trim((string) ($worksheet->getCell("C{$row}")->getValue() ?? '')),
+            'agent_code' => is_scalar($agentCodeVal) ? trim((string) $agentCodeVal) : '',
+            'hotel_name' => is_scalar($hotelNameVal) ? trim((string) $hotelNameVal) : '',
+            'room_type_name' => is_scalar($roomTypeNameVal) ? trim((string) $roomTypeNameVal) : '',
             'check_in_date' => $worksheet->getCell("D{$row}")->getValue(),
             'check_out_date' => $worksheet->getCell("E{$row}")->getValue(),
-            'room_count' => (int) ($worksheet->getCell("F{$row}")->getValue() ?? 0),
-            'unit_price' => (float) ($worksheet->getCell("G{$row}")->getValue() ?? 0),
-            'remark' => trim((string) ($worksheet->getCell("H{$row}")->getValue() ?? '')),
+            'room_count' => is_numeric($roomCountVal) ? (int) $roomCountVal : 0,
+            'unit_price' => is_numeric($unitPriceVal) ? (float) $unitPriceVal : 0.0,
+            'remark' => is_scalar($remarkVal) ? trim((string) $remarkVal) : '',
         ];
     }
 
     /**
      * 检查是否为空行
      */
+    /**
+     * @param array<string, mixed> $rowData
+     */
     private function isEmptyRow(array $rowData): bool
     {
         $requiredFields = ['agent_code', 'hotel_name', 'room_type_name', 'check_in_date', 'check_out_date'];
 
         foreach ($requiredFields as $field) {
-            if (!empty($rowData[$field])) {
+            if ('' !== $rowData[$field] && null !== $rowData[$field]) {
                 return false;
             }
         }
@@ -147,34 +171,16 @@ class OrderImportService
     /**
      * 从行数据创建订单
      */
+    /**
+     * @param array<string, mixed> $rowData
+     */
     private function createOrderFromRowData(array $rowData, int $operatorId): Order
     {
         // 验证必填字段
         $this->validateRowData($rowData);
 
-        // 查找代理
-        $agent = $this->agentRepository
-            ->findOneBy(['code' => $rowData['agent_code']]);
-
-        if (null === $agent) {
-            throw new OrderImportException("代理编号 '{$rowData['agent_code']}' 不存在");
-        }
-
-        // 查找酒店
-        $hotel = $this->hotelRepository
-            ->findOneBy(['name' => $rowData['hotel_name']]);
-
-        if (null === $hotel) {
-            throw new OrderImportException("酒店 '{$rowData['hotel_name']}' 不存在");
-        }
-
-        // 查找房型
-        $roomType = $this->roomTypeRepository
-            ->findOneBy(['hotel' => $hotel, 'name' => $rowData['room_type_name']]);
-
-        if (null === $roomType) {
-            throw new OrderImportException("房型 '{$rowData['room_type_name']}' 在酒店 '{$rowData['hotel_name']}' 中不存在");
-        }
+        // 验证并查找实体
+        $entities = $this->validateAndFindEntities($rowData);
 
         // 处理日期
         $checkInDate = $this->parseDate($rowData['check_in_date'], '入住日期');
@@ -185,40 +191,118 @@ class OrderImportService
         }
 
         // 创建订单
+        $remark = isset($rowData['remark']) && is_string($rowData['remark']) ? $rowData['remark'] : null;
+        $roomCountRaw = $rowData['room_count'] ?? 0;
+        $roomCount = is_numeric($roomCountRaw) ? (int) $roomCountRaw : 0;
+        $unitPriceRaw = $rowData['unit_price'] ?? 0;
+        $unitPrice = is_numeric($unitPriceRaw) ? (string) $unitPriceRaw : '0';
+
         $order = new Order();
         $order->setOrderNo($this->generateOrderNo());
-        $order->setAgent($agent);
+        $order->setAgent($entities['agent']);
         $order->setStatus(OrderStatusEnum::PENDING);
         $order->setSource(OrderSourceEnum::EXCEL_IMPORT);
-        $order->setRemark($rowData['remark'] ?? null);
-        $order->setCreatedBy($operatorId);
+        $order->setRemark($remark);
+        $order->setCreatedBy((string) $operatorId);
 
         // 创建订单项
-        $orderItem = new OrderItem();
-        $orderItem->setOrder($order);
-        $orderItem->setHotel($hotel);
-        $orderItem->setRoomType($roomType);
-        $orderItem->setCheckInDate($checkInDate);
-        $orderItem->setCheckOutDate($checkOutDate);
-        $orderItem->setUnitPrice((string) $rowData['unit_price']);
+        $this->createOrderItemsFromRowData(
+            $order,
+            $entities['hotel'],
+            $entities['roomType'],
+            $checkInDate,
+            $checkOutDate,
+            $roomCount,
+            $unitPrice
+        );
 
-        // 计算金额 - 使用 Brick\Math 进行精确计算
-        $nights = $checkInDate->diff($checkOutDate)->days;
-        $unitPrice = BigDecimal::of($rowData['unit_price']);
-        $roomCount = BigDecimal::of($rowData['room_count']);
-        $nightsDecimal = BigDecimal::of($nights);
-
-        $amount = $unitPrice->multipliedBy($roomCount)->multipliedBy($nightsDecimal)->toScale(2);
-        $orderItem->setAmount($amount->__toString());
-
-        $order->addOrderItem($orderItem);
         $order->recalculateTotalAmount();
 
         return $order;
     }
 
     /**
+     * 验证并查找相关实体
+     *
+     * @param array<string, mixed> $rowData
+     * @return array{agent: Agent, hotel: Hotel, roomType: RoomType}
+     */
+    private function validateAndFindEntities(array $rowData): array
+    {
+        $agentCode = is_string($rowData['agent_code'] ?? null) ? $rowData['agent_code'] : '';
+        $hotelName = is_string($rowData['hotel_name'] ?? null) ? $rowData['hotel_name'] : '';
+        $roomTypeName = is_string($rowData['room_type_name'] ?? null) ? $rowData['room_type_name'] : '';
+
+        // 查找代理
+        $agent = $this->agentRepository->findOneBy(['code' => $agentCode]);
+        if (null === $agent) {
+            throw new OrderImportException("代理编号 '{$agentCode}' 不存在");
+        }
+
+        // 查找酒店
+        $hotel = $this->hotelService->findHotelByName($hotelName);
+        if (null === $hotel) {
+            throw new OrderImportException("酒店 '{$hotelName}' 不存在");
+        }
+
+        // 查找房型
+        $hotelId = $hotel->getId();
+        if (null === $hotelId) {
+            throw new OrderImportException("Hotel ID is null for hotel '{$hotelName}'");
+        }
+
+        $roomType = $this->roomTypeService->findRoomTypeByHotelAndName($hotelId, $roomTypeName);
+        if (null === $roomType) {
+            throw new OrderImportException("房型 '{$roomTypeName}' 在酒店 '{$hotelName}' 中不存在");
+        }
+
+        return [
+            'agent' => $agent,
+            'hotel' => $hotel,
+            'roomType' => $roomType,
+        ];
+    }
+
+    /**
+     * 为订单创建订单项
+     */
+    private function createOrderItemsFromRowData(
+        Order $order,
+        Hotel $hotel,
+        RoomType $roomType,
+        \DateTimeImmutable $checkInDate,
+        \DateTimeImmutable $checkOutDate,
+        int $roomCount,
+        string $unitPrice,
+    ): void {
+        // 为每个房间创建每晚的订单项
+        for ($roomIndex = 0; $roomIndex < $roomCount; ++$roomIndex) {
+            $currentDate = $checkInDate;
+            while ($currentDate < $checkOutDate) {
+                $nextDate = $currentDate->modify('+1 day');
+
+                // 创建订单项（每个房间每晚一个订单项）
+                $orderItem = new OrderItem();
+                $orderItem->setOrder($order);
+                $orderItem->setHotel($hotel);
+                $orderItem->setRoomType($roomType);
+                $orderItem->setCheckInDate($currentDate);
+                $orderItem->setCheckOutDate($nextDate);
+                $orderItem->setUnitPrice($unitPrice);
+                $orderItem->setAmount($unitPrice); // 单晚价格
+
+                $order->addOrderItem($orderItem);
+
+                $currentDate = $nextDate;
+            }
+        }
+    }
+
+    /**
      * 验证行数据
+     */
+    /**
+     * @param array<string, mixed> $rowData
      */
     private function validateRowData(array $rowData): void
     {
@@ -231,7 +315,7 @@ class OrderImportService
         ];
 
         foreach ($requiredFields as $field => $label) {
-            if (empty($rowData[$field])) {
+            if (!isset($rowData[$field]) || '' === $rowData[$field]) {
                 throw new OrderImportException("{$label}不能为空");
             }
         }
@@ -247,6 +331,7 @@ class OrderImportService
 
     /**
      * 解析日期
+     * @param mixed $value
      */
     private function parseDate($value, string $fieldName): \DateTimeImmutable
     {
@@ -260,7 +345,9 @@ class OrderImportService
 
         if (is_numeric($value)) {
             // Excel 日期序列号
-            $date = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($value);
+            $numericValue = is_string($value) ? (float) $value : $value;
+            $date = Date::excelToDateTimeObject($numericValue);
+
             return \DateTimeImmutable::createFromMutable($date);
         }
 
@@ -284,15 +371,15 @@ class OrderImportService
         $datePart = date('Ymd');
 
         // 查询当天最大订单号
-        $qb = $this->entityManager->createQueryBuilder();
+        $qb = $this->orderRepository->createQueryBuilder('o');
         $qb->select('MAX(o.orderNo)')
-            ->from(Order::class, 'o')
             ->where('o.orderNo LIKE :prefix')
-            ->setParameter('prefix', $prefix . $datePart . '%');
+            ->setParameter('prefix', $prefix . $datePart . '%')
+        ;
 
         $maxOrderNo = $qb->getQuery()->getSingleScalarResult();
 
-        if ($maxOrderNo) {
+        if (null !== $maxOrderNo && is_string($maxOrderNo)) {
             $sequence = (int) substr($maxOrderNo, -4) + 1;
         } else {
             $sequence = 1;

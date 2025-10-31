@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
+use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Repository\AgentRepository;
 
 /**
@@ -10,11 +13,12 @@ use Tourze\HotelAgentBundle\Repository\AgentRepository;
  * 自动生成格式为 AGT + 8位数字的代理编号
  * 例如：AGT20250101
  */
-class AgentCodeGenerator
+readonly class AgentCodeGenerator
 {
     public function __construct(
-        private readonly AgentRepository $agentRepository
-    ) {}
+        private AgentRepository $agentRepository,
+    ) {
+    }
 
     /**
      * 生成下一个可用的代理编号
@@ -22,11 +26,20 @@ class AgentCodeGenerator
     public function generateCode(): string
     {
         $prefix = 'AGT';
-
-        // 获取当前年月日作为基础
         $dateBase = date('Ymd');
 
-        // 查找同一天创建的最大编号
+        $nextNumber = $this->getNextSequenceNumber($prefix, $dateBase);
+        $newCode = $this->buildCodeWithSequence($prefix, $dateBase, $nextNumber);
+
+        return $this->ensureCodeUniqueness($newCode, $prefix, $dateBase, $nextNumber);
+    }
+
+    /**
+     * 获取下一个序列号
+     */
+    private function getNextSequenceNumber(string $prefix, string $dateBase): int
+    {
+        /** @var Agent|null $lastAgent */
         $lastAgent = $this->agentRepository
             ->createQueryBuilder('a')
             ->where('a.code LIKE :pattern')
@@ -34,35 +47,44 @@ class AgentCodeGenerator
             ->orderBy('a.code', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getOneOrNullResult()
+        ;
 
-        if (null !== $lastAgent) {
-            // 提取最后的序号并递增
-            $lastCode = $lastAgent->getCode();
-            $lastNumber = (int) substr($lastCode, -2); // 取后两位
-            $nextNumber = $lastNumber + 1;
-        } else {
-            $nextNumber = 1;
+        if (null === $lastAgent) {
+            return 1;
         }
 
-        // 如果当天编号超过99，使用时间戳后8位
+        $lastCode = $lastAgent->getCode();
+        $lastNumber = (int) substr($lastCode, -2); // 取后两位
+
+        return $lastNumber + 1;
+    }
+
+    /**
+     * 构建带序列号的代理编码
+     */
+    private function buildCodeWithSequence(string $prefix, string $dateBase, int $nextNumber): string
+    {
         if ($nextNumber > 99) {
             $suffix = substr((string) time(), -8);
         } else {
             $suffix = str_pad((string) $nextNumber, 2, '0', STR_PAD_LEFT);
         }
 
-        $newCode = $prefix . $dateBase . $suffix;
+        return $prefix . $dateBase . $suffix;
+    }
 
-        // 确保编号唯一
+    /**
+     * 确保代理编码的唯一性
+     */
+    private function ensureCodeUniqueness(string $baseCode, string $prefix, string $dateBase, int $nextNumber): string
+    {
+        $newCode = $baseCode;
         $attempts = 0;
+
         while ($this->codeExists($newCode) && $attempts < 100) {
-            $attempts++;
-            $suffix = str_pad((string) ($nextNumber + $attempts), 2, '0', STR_PAD_LEFT);
-            if ($nextNumber + $attempts > 99) {
-                $suffix = substr((string) (time() + $attempts), -8);
-            }
-            $newCode = $prefix . $dateBase . $suffix;
+            ++$attempts;
+            $newCode = $this->generateAlternativeCode($prefix, $dateBase, $nextNumber, $attempts);
         }
 
         if ($this->codeExists($newCode)) {
@@ -74,13 +96,29 @@ class AgentCodeGenerator
     }
 
     /**
+     * 生成替代的代理编码
+     */
+    private function generateAlternativeCode(string $prefix, string $dateBase, int $nextNumber, int $attempts): string
+    {
+        $newNumber = $nextNumber + $attempts;
+
+        if ($newNumber > 99) {
+            $suffix = substr((string) (time() + $attempts), -8);
+        } else {
+            $suffix = str_pad((string) $newNumber, 2, '0', STR_PAD_LEFT);
+        }
+
+        return $prefix . $dateBase . $suffix;
+    }
+
+    /**
      * 检查代理编号是否已存在
      */
     private function codeExists(string $code): bool
     {
         $agent = $this->agentRepository->findOneBy(['code' => $code]);
 
-        return $agent !== null;
+        return null !== $agent;
     }
 
     /**
@@ -88,6 +126,6 @@ class AgentCodeGenerator
      */
     public function isValidCode(string $code): bool
     {
-        return preg_match('/^AGT\d{8,10}$/', $code) === 1;
+        return 1 === preg_match('/^AGT\d{8,10}$/', $code);
     }
 }

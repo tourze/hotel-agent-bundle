@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use Tourze\HotelAgentBundle\Entity\Order;
 use Tourze\HotelAgentBundle\Enum\OrderItemStatusEnum;
@@ -14,20 +17,22 @@ use Tourze\HotelContractBundle\Service\InventorySummaryService;
 /**
  * 订单状态管理服务
  */
-class OrderStatusService
+#[WithMonologChannel(channel: 'hotel_agent')]
+readonly class OrderStatusService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly LoggerInterface $logger,
-        private readonly InventorySummaryService $summaryService,
-    ) {}
+        private EntityManagerInterface $entityManager,
+        private LoggerInterface $logger,
+        private InventorySummaryService $summaryService,
+    ) {
+    }
 
     /**
      * 确认订单
      */
     public function confirmOrder(Order $order, int $operatorId): void
     {
-        if ($order->getStatus() !== OrderStatusEnum::PENDING) {
+        if (OrderStatusEnum::PENDING !== $order->getStatus()) {
             throw new OrderProcessingException('只有待确认状态的订单才能确认');
         }
 
@@ -70,7 +75,9 @@ class OrderStatusService
                 'operator_id' => $operatorId,
             ]);
         } catch (\Throwable $e) {
-            $this->entityManager->rollback();
+            if ($this->entityManager->getConnection()->isTransactionActive()) {
+                $this->entityManager->rollback();
+            }
             $this->logger->error('订单确认失败', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
@@ -126,7 +133,9 @@ class OrderStatusService
                 'operator_id' => $operatorId,
             ]);
         } catch (\Throwable $e) {
-            $this->entityManager->rollback();
+            if ($this->entityManager->getConnection()->isTransactionActive()) {
+                $this->entityManager->rollback();
+            }
             $this->logger->error('订单取消失败', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
@@ -141,7 +150,7 @@ class OrderStatusService
      */
     public function closeOrder(Order $order, string $reason, int $operatorId): void
     {
-        if ($order->getStatus() !== OrderStatusEnum::CONFIRMED) {
+        if (OrderStatusEnum::CONFIRMED !== $order->getStatus()) {
             throw new OrderProcessingException('只有已确认状态的订单才能关闭');
         }
 
@@ -182,7 +191,9 @@ class OrderStatusService
                 'operator_id' => $operatorId,
             ]);
         } catch (\Throwable $e) {
-            $this->entityManager->rollback();
+            if ($this->entityManager->getConnection()->isTransactionActive()) {
+                $this->entityManager->rollback();
+            }
             $this->logger->error('订单关闭失败', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
@@ -194,6 +205,8 @@ class OrderStatusService
 
     /**
      * 释放订单项的库存分配
+     *
+     * 不考虑并发：此方法在事务内执行，由调用方确保事务隔离
      */
     private function releaseOrderItemInventory(Order $order): void
     {
@@ -230,7 +243,7 @@ class OrderStatusService
      */
     public function canConfirm(Order $order): bool
     {
-        return $order->getStatus() === OrderStatusEnum::PENDING;
+        return OrderStatusEnum::PENDING === $order->getStatus();
     }
 
     /**
@@ -246,11 +259,13 @@ class OrderStatusService
      */
     public function canClose(Order $order): bool
     {
-        return $order->getStatus() === OrderStatusEnum::CONFIRMED;
+        return OrderStatusEnum::CONFIRMED === $order->getStatus();
     }
 
     /**
      * 更新订单相关的库存统计
+     *
+     * 不考虑并发：此方法在事务内执行，由调用方确保事务隔离
      */
     private function updateInventoryStatisticsForOrder(Order $order): void
     {
@@ -281,14 +296,14 @@ class OrderStatusService
             $this->logger->info('订单库存统计更新成功', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
-                'updated_dates' => array_unique($updatedDates)
+                'updated_dates' => array_unique($updatedDates),
             ]);
         } catch (\Throwable $e) {
             // 库存统计更新失败不影响订单操作，只记录日志
             $this->logger->error('订单库存统计更新失败', [
                 'order_id' => $order->getId(),
                 'order_no' => $order->getOrderNo(),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
         }
     }

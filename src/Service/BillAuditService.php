@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -15,16 +18,18 @@ use Tourze\HotelAgentBundle\Repository\BillAuditLogRepository;
 /**
  * 账单审核服务
  */
-class BillAuditService
+#[WithMonologChannel(channel: 'hotel_agent')]
+readonly class BillAuditService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly BillAuditLogRepository $billAuditLogRepository,
-        private readonly AgentBillRepository $agentBillRepository,
-        private readonly LoggerInterface $logger,
-        private readonly RequestStack $requestStack,
-        private readonly Security $security
-    ) {}
+        private EntityManagerInterface $entityManager,
+        private BillAuditLogRepository $billAuditLogRepository,
+        private AgentBillRepository $agentBillRepository,
+        private LoggerInterface $logger,
+        private RequestStack $requestStack,
+        private Security $security,
+    ) {
+    }
 
     /**
      * 记录账单状态变更
@@ -33,7 +38,7 @@ class BillAuditService
         AgentBill $agentBill,
         ?BillStatusEnum $fromStatus,
         BillStatusEnum $toStatus,
-        ?string $remarks = null
+        ?string $remarks = null,
     ): BillAuditLog {
         $log = BillAuditLog::createStatusChangeLog(
             $agentBill,
@@ -51,7 +56,7 @@ class BillAuditService
             'billId' => $agentBill->getId(),
             'fromStatus' => $fromStatus?->value,
             'toStatus' => $toStatus->value,
-            'operator' => $this->getCurrentUserName()
+            'operator' => $this->getCurrentUserName(),
         ]);
 
         return $log;
@@ -59,12 +64,14 @@ class BillAuditService
 
     /**
      * 记录账单重新计算
+     * @param array<string, mixed> $oldData
+     * @param array<string, mixed> $newData
      */
     public function logRecalculation(
         AgentBill $agentBill,
         array $oldData,
         array $newData,
-        ?string $remarks = null
+        ?string $remarks = null,
     ): BillAuditLog {
         $log = BillAuditLog::createRecalculateLog(
             $agentBill,
@@ -83,8 +90,8 @@ class BillAuditService
             'operator' => $this->getCurrentUserName(),
             'changes' => [
                 'old' => $oldData,
-                'new' => $newData
-            ]
+                'new' => $newData,
+            ],
         ]);
 
         return $log;
@@ -96,7 +103,7 @@ class BillAuditService
     public function logAuditAction(
         AgentBill $agentBill,
         string $action,
-        ?string $remarks = null
+        ?string $remarks = null,
     ): BillAuditLog {
         $log = BillAuditLog::createAuditLog(
             $agentBill,
@@ -112,7 +119,7 @@ class BillAuditService
         $this->logger->info('记录账单审核操作', [
             'billId' => $agentBill->getId(),
             'action' => $action,
-            'operator' => $this->getCurrentUserName()
+            'operator' => $this->getCurrentUserName(),
         ]);
 
         return $log;
@@ -120,6 +127,7 @@ class BillAuditService
 
     /**
      * 获取账单的审核历史
+     * @return array<BillAuditLog>
      */
     public function getBillAuditHistory(AgentBill $agentBill): array
     {
@@ -128,40 +136,19 @@ class BillAuditService
 
     /**
      * 获取审核统计数据
+     * @return array<string, mixed>
      */
     public function getAuditStatistics(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
-        $rawData = $this->billAuditLogRepository->getAuditStatistics($startDate, $endDate);
+        return $this->billAuditLogRepository->getAuditStatistics($startDate, $endDate);
 
-        $statistics = [
-            'total_actions' => 0,
-            'actions_by_type' => [],
-            'daily_stats' => []
-        ];
-
-        foreach ($rawData as $row) {
-            $action = $row['action'];
-            $count = (int) $row['count'];
-            $date = $row['date'];
-
-            $statistics['total_actions'] += $count;
-
-            if (!isset($statistics['actions_by_type'][$action])) {
-                $statistics['actions_by_type'][$action] = 0;
-            }
-            $statistics['actions_by_type'][$action] += $count;
-
-            if (!isset($statistics['daily_stats'][$date])) {
-                $statistics['daily_stats'][$date] = [];
-            }
-            $statistics['daily_stats'][$date][$action] = $count;
-        }
-
-        return $statistics;
+        // Repository 已经返回了正确格式的数据，直接返回
     }
 
     /**
      * 批量审核账单
+     * @param array<int> $billIds
+     * @return array<int, array{success: bool, error?: string}>
      */
     public function batchAuditBills(array $billIds, string $action, ?string $remarks = null): array
     {
@@ -181,7 +168,7 @@ class BillAuditService
                 $results[$billId] = ['success' => false, 'error' => $e->getMessage()];
                 $this->logger->error('批量审核账单失败', [
                     'billId' => $billId,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -198,11 +185,11 @@ class BillAuditService
         $currentStatus = $agentBill->getStatus();
 
         return match ($action) {
-            '确认账单' => $currentStatus === BillStatusEnum::PENDING,
-            '重新计算' => $currentStatus !== BillStatusEnum::PAID,
-            '生成签章' => $currentStatus === BillStatusEnum::CONFIRMED,
-            '标记支付' => $currentStatus === BillStatusEnum::CONFIRMED,
-            default => false
+            '确认账单' => BillStatusEnum::PENDING === $currentStatus,
+            '重新计算' => BillStatusEnum::PAID !== $currentStatus,
+            '生成签章' => BillStatusEnum::CONFIRMED === $currentStatus,
+            '标记支付' => BillStatusEnum::CONFIRMED === $currentStatus,
+            default => false,
         };
     }
 
@@ -212,6 +199,7 @@ class BillAuditService
     private function getCurrentUserName(): ?string
     {
         $user = $this->security->getUser();
+
         return null !== $user ? $user->getUserIdentifier() : null;
     }
 
@@ -221,11 +209,13 @@ class BillAuditService
     private function getCurrentIpAddress(): ?string
     {
         $request = $this->requestStack->getCurrentRequest();
+
         return null !== $request ? $request->getClientIp() : null;
     }
 
     /**
      * 导出审核日志
+     * @return array<int, array<string, mixed>>
      */
     public function exportAuditLogs(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
@@ -236,7 +226,7 @@ class BillAuditService
             $exportData[] = [
                 'id' => $log->getId(),
                 'bill_id' => $log->getAgentBill()->getId(),
-                'agent_name' => $log->getAgentBill()->getAgent()->getCompanyName(),
+                'agent_name' => $log->getAgentBill()->getAgent()?->getCompanyName() ?? 'N/A',
                 'bill_month' => $log->getAgentBill()->getBillMonth(),
                 'action' => $log->getAction(),
                 'from_status' => $log->getFromStatus()?->getLabel(),
@@ -244,7 +234,7 @@ class BillAuditService
                 'remarks' => $log->getRemarks(),
                 'operator_name' => $log->getOperatorName(),
                 'ip_address' => $log->getIpAddress(),
-                'create_time' => $log->getCreateTime()?->format('Y-m-d H:i:s')
+                'create_time' => $log->getCreateTime()?->format('Y-m-d H:i:s'),
             ];
         }
 

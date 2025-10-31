@@ -7,4 +7,6 @@ namespace Tourze\HotelAgentBundle\Exception;
 /**
  * 代理账单异常
  */
-class AgentBillException extends HotelAgentException {}
+class AgentBillException extends HotelAgentException
+{
+}

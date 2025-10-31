@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Enum;
 
 use Tourze\EnumExtra\Itemable;
@@ -23,11 +25,15 @@ enum AgentStatusEnum: string implements Labelable, Itemable, Selectable
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::ACTIVE => '激活',
             self::FROZEN => '冻结',
             self::DISABLED => '禁用',
             self::EXPIRED => '已过期',
         };
     }
+
+    /**
+     * 生成枚举下拉选项
+     */
 }

@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Service;
 
 use Brick\Math\BigDecimal;
 use Doctrine\ORM\EntityManagerInterface;
+use Monolog\Attribute\WithMonologChannel;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBagInterface;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
@@ -17,14 +20,16 @@ use Tourze\HotelAgentBundle\Repository\PaymentRepository;
 /**
  * 支付管理服务
  */
-class PaymentService
+#[WithMonologChannel(channel: 'hotel_agent')]
+readonly class PaymentService
 {
     public function __construct(
-        private readonly EntityManagerInterface $entityManager,
-        private readonly PaymentRepository $paymentRepository,
-        private readonly LoggerInterface $logger,
-        private readonly ParameterBagInterface $parameterBag
-    ) {}
+        private EntityManagerInterface $entityManager,
+        private PaymentRepository $paymentRepository,
+        private LoggerInterface $logger,
+        private ParameterBagInterface $parameterBag,
+    ) {
+    }
 
     /**
      * 创建支付记录
@@ -33,10 +38,10 @@ class PaymentService
         AgentBill $agentBill,
         string $amount,
         PaymentMethodEnum $paymentMethod,
-        ?string $remarks = null
+        ?string $remarks = null,
     ): Payment {
         // 验证账单状态
-        if ($agentBill->getStatus() !== BillStatusEnum::CONFIRMED) {
+        if (BillStatusEnum::CONFIRMED !== $agentBill->getStatus()) {
             throw new PaymentProcessingException('只有已确认的账单才能创建支付记录');
         }
 
@@ -50,12 +55,12 @@ class PaymentService
         }
 
         $payment = new Payment();
-        $payment->setAgentBill($agentBill)
-            ->setAmount($amount)
-            ->setPaymentMethod($paymentMethod)
-            ->setStatus(PaymentStatusEnum::PENDING)
-            ->setRemarks($remarks)
-            ->generatePaymentNo();
+        $payment->setAgentBill($agentBill);
+        $payment->setAmount($amount);
+        $payment->setPaymentMethod($paymentMethod);
+        $payment->setStatus(PaymentStatusEnum::PENDING);
+        $payment->setRemarks($remarks);
+        $payment->generatePaymentNo();
 
         $this->entityManager->persist($payment);
         $this->entityManager->flush();
@@ -64,7 +69,7 @@ class PaymentService
             'paymentId' => $payment->getId(),
             'billId' => $agentBill->getId(),
             'amount' => $amount,
-            'paymentMethod' => $paymentMethod->value
+            'paymentMethod' => $paymentMethod->value,
         ]);
 
         return $payment;
@@ -76,13 +81,14 @@ class PaymentService
     public function processPaymentSuccess(
         Payment $payment,
         ?string $transactionId = null,
-        ?string $paymentProofUrl = null
+        ?string $paymentProofUrl = null,
     ): bool {
-        if ($payment->getStatus() !== PaymentStatusEnum::PENDING) {
+        if (PaymentStatusEnum::PENDING !== $payment->getStatus()) {
             $this->logger->warning('支付状态不正确', [
                 'paymentId' => $payment->getId(),
-                'currentStatus' => $payment->getStatus()->value
+                'currentStatus' => $payment->getStatus()->value,
             ]);
+
             return false;
         }
 
@@ -101,7 +107,7 @@ class PaymentService
 
         $this->logger->info('支付处理成功', [
             'paymentId' => $payment->getId(),
-            'transactionId' => $transactionId
+            'transactionId' => $transactionId,
         ]);
 
         return true;
@@ -112,7 +118,7 @@ class PaymentService
      */
     public function processPaymentFailure(Payment $payment, string $failureReason): bool
     {
-        if ($payment->getStatus() !== PaymentStatusEnum::PENDING) {
+        if (PaymentStatusEnum::PENDING !== $payment->getStatus()) {
             return false;
         }
 
@@ -121,7 +127,7 @@ class PaymentService
 
         $this->logger->info('支付处理失败', [
             'paymentId' => $payment->getId(),
-            'failureReason' => $failureReason
+            'failureReason' => $failureReason,
         ]);
 
         return true;
@@ -132,11 +138,12 @@ class PaymentService
      */
     public function confirmPayment(Payment $payment): bool
     {
-        if ($payment->getStatus() !== PaymentStatusEnum::SUCCESS) {
+        if (PaymentStatusEnum::SUCCESS !== $payment->getStatus()) {
             $this->logger->warning('只有成功的支付才能确认', [
                 'paymentId' => $payment->getId(),
-                'currentStatus' => $payment->getStatus()->value
+                'currentStatus' => $payment->getStatus()->value,
             ]);
+
             return false;
         }
 
@@ -144,6 +151,7 @@ class PaymentService
         $this->entityManager->flush();
 
         $this->logger->info('支付已确认', ['paymentId' => $payment->getId()]);
+
         return true;
     }
 
@@ -152,13 +160,15 @@ class PaymentService
      */
     private function isFullyPaid(AgentBill $agentBill): bool
     {
+        /** @var Payment[] $successfulPayments */
         $successfulPayments = $this->paymentRepository->createQueryBuilder('p')
             ->andWhere('p.agentBill = :agentBill')
             ->andWhere('p.status = :status')
             ->setParameter('agentBill', $agentBill)
             ->setParameter('status', PaymentStatusEnum::SUCCESS)
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
 
         $totalPaid = BigDecimal::zero();
         foreach ($successfulPayments as $payment) {
@@ -170,6 +180,8 @@ class PaymentService
 
     /**
      * 获取支付统计数据
+     *
+     * @return array<int, array<string, mixed>>
      */
     public function getPaymentStatistics(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
@@ -178,6 +190,8 @@ class PaymentService
 
     /**
      * 获取待处理的支付记录
+     *
+     * @return Payment[]
      */
     public function getPendingPayments(): array
     {
@@ -186,6 +200,9 @@ class PaymentService
 
     /**
      * 批量处理支付
+     *
+     * @param int[] $paymentIds
+     * @return array<int, array<string, mixed>>
      */
     public function batchProcessPayments(array $paymentIds, PaymentStatusEnum $targetStatus, ?string $remarks = null): array
     {
@@ -213,7 +230,7 @@ class PaymentService
 
                 $results[$paymentId] = [
                     'success' => $success,
-                    'message' => $success ? '处理成功' : '处理失败'
+                    'message' => $success ? '处理成功' : '处理失败',
                 ];
             } catch (\Throwable $e) {
                 $results[$paymentId] = ['success' => false, 'message' => $e->getMessage()];
@@ -225,16 +242,28 @@ class PaymentService
 
     /**
      * 根据支付方式获取支付配置
+     *
+     * @return array<string, mixed>
      */
     public function getPaymentConfig(PaymentMethodEnum $paymentMethod): array
     {
         $config = $this->parameterBag->get('payment_config');
 
-        return $config[$paymentMethod->value] ?? [];
+        if (!is_array($config)) {
+            /** @var array<string, mixed> */
+            return [];
+        }
+
+        $methodConfig = $config[$paymentMethod->value] ?? [];
+
+        /** @var array<string, mixed> */
+        return is_array($methodConfig) ? $methodConfig : [];
     }
 
     /**
      * 验证支付参数
+     *
+     * @param array<string, mixed> $params
      */
     public function validatePaymentParams(PaymentMethodEnum $paymentMethod, array $params): bool
     {
@@ -242,8 +271,15 @@ class PaymentService
 
         // 检查必需参数
         $requiredParams = $config['required_params'] ?? [];
+        if (!is_array($requiredParams)) {
+            return true;
+        }
+
         foreach ($requiredParams as $param) {
-            if (!isset($params[$param]) || empty($params[$param])) {
+            if (!is_string($param)) {
+                continue;
+            }
+            if (!isset($params[$param]) || '' === $params[$param]) {
                 return false;
             }
         }
@@ -253,6 +289,8 @@ class PaymentService
 
     /**
      * 生成支付报表
+     *
+     * @return array<string, mixed>
      */
     public function generatePaymentReport(\DateTimeInterface $startDate, \DateTimeInterface $endDate): array
     {
@@ -262,14 +300,16 @@ class PaymentService
             ->andWhere('p.createTime BETWEEN :startDate AND :endDate')
             ->setParameter('startDate', $startDate)
             ->setParameter('endDate', $endDate)
-            ->orderBy('p.createTime', 'DESC');
+            ->orderBy('p.createTime', 'DESC')
+        ;
 
+        /** @var Payment[] $payments */
         $payments = $qb->getQuery()->getResult();
 
         $report = [
             'period' => [
                 'start' => $startDate->format('Y-m-d'),
-                'end' => $endDate->format('Y-m-d')
+                'end' => $endDate->format('Y-m-d'),
             ],
             'summary' => [
                 'total_count' => 0,
@@ -277,23 +317,25 @@ class PaymentService
                 'success_count' => 0,
                 'success_amount' => '0.00',
                 'failed_count' => 0,
-                'pending_count' => 0
+                'pending_count' => 0,
             ],
             'by_method' => [],
             'by_agent' => [],
-            'payments' => []
+            'payments' => [],
         ];
 
         foreach ($payments as $payment) {
-            $report['summary']['total_count']++;
+            ++$report['summary']['total_count'];
             $report['summary']['total_amount'] = BigDecimal::of($report['summary']['total_amount'])
-                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
+                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString()
+            ;
 
             switch ($payment->getStatus()) {
                 case PaymentStatusEnum::SUCCESS:
                     $report['summary']['success_count']++;
                     $report['summary']['success_amount'] = BigDecimal::of($report['summary']['success_amount'])
-                        ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
+                        ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString()
+                    ;
                     break;
                 case PaymentStatusEnum::FAILED:
                     $report['summary']['failed_count']++;
@@ -308,22 +350,27 @@ class PaymentService
             if (!isset($report['by_method'][$method])) {
                 $report['by_method'][$method] = ['count' => 0, 'amount' => '0.00'];
             }
-            $report['by_method'][$method]['count']++;
+            ++$report['by_method'][$method]['count'];
             $report['by_method'][$method]['amount'] = BigDecimal::of($report['by_method'][$method]['amount'])
-                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
+                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString()
+            ;
 
             // 按代理统计
-            $agentId = $payment->getAgentBill()->getAgent()->getId();
-            if (!isset($report['by_agent'][$agentId])) {
-                $report['by_agent'][$agentId] = [
-                    'agent_name' => $payment->getAgentBill()->getAgent()->getCompanyName(),
-                    'count' => 0,
-                    'amount' => '0.00'
-                ];
+            $agent = $payment->getAgentBill()->getAgent();
+            if (null !== $agent) {
+                $agentId = $agent->getId();
+                if (!isset($report['by_agent'][$agentId])) {
+                    $report['by_agent'][$agentId] = [
+                        'agent_name' => $agent->getCompanyName(),
+                        'count' => 0,
+                        'amount' => '0.00',
+                    ];
+                }
+                ++$report['by_agent'][$agentId]['count'];
+                $report['by_agent'][$agentId]['amount'] = BigDecimal::of($report['by_agent'][$agentId]['amount'])
+                    ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString()
+                ;
             }
-            $report['by_agent'][$agentId]['count']++;
-            $report['by_agent'][$agentId]['amount'] = BigDecimal::of($report['by_agent'][$agentId]['amount'])
-                ->plus(BigDecimal::of($payment->getAmount()))->toScale(2)->__toString();
 
             $report['payments'][] = [
                 'id' => $payment->getId(),
@@ -331,8 +378,8 @@ class PaymentService
                 'amount' => $payment->getAmount(),
                 'method' => $payment->getPaymentMethod()->getLabel(),
                 'status' => $payment->getStatus()->getLabel(),
-                'agent' => $payment->getAgentBill()->getAgent()->getCompanyName(),
-                'create_time' => $payment->getCreateTime()->format('Y-m-d H:i:s')
+                'agent' => $payment->getAgentBill()->getAgent()?->getCompanyName() ?? 'Unknown',
+                'create_time' => $payment->getCreateTime()?->format('Y-m-d H:i:s') ?? 'Unknown',
             ];
         }
 

@@ -1,219 +1,248 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Tests\Entity;
 
-use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\CoversClass;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentHotelMapping;
 use Tourze\HotelProfileBundle\Entity\Hotel;
+use Tourze\PHPUnitDoctrineEntity\AbstractEntityTestCase;
 
-class AgentHotelMappingTest extends TestCase
+/**
+ * @internal
+ */
+#[CoversClass(AgentHotelMapping::class)]
+final class AgentHotelMappingTest extends AbstractEntityTestCase
 {
-    private AgentHotelMapping $mapping;
-
-    protected function setUp(): void
-    {
-        $this->mapping = new AgentHotelMapping();
-    }
-
-    public function test_toString_returns_agent_and_hotel_names(): void
+    public function testToStringReturnsAgentAndHotelNames(): void
     {
         $agent = new Agent();
         $agent->setCompanyName('测试代理公司');
 
+        /*
+         * 使用具体类 Hotel 创建 mock 对象的原因：
+         * 1. Hotel 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getName() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $hotel = $this->createMock(Hotel::class);
         $hotel->method('getName')->willReturn('测试酒店');
 
-        $this->mapping->setAgent($agent)->setHotel($hotel);
+        $mapping = new AgentHotelMapping();
+        $mapping->setAgent($agent);
+        $mapping->setHotel($hotel);
 
-        $this->assertSame('测试代理公司 - 测试酒店', $this->mapping->__toString());
+        $this->assertSame('测试代理公司 - 测试酒店', $mapping->__toString());
     }
 
-    public function test_toString_with_null_agent_and_hotel(): void
+    public function testToStringWithNullAgentAndHotel(): void
     {
-        $result = $this->mapping->__toString();
+        $mapping = new AgentHotelMapping();
+        $result = $mapping->__toString();
 
         $this->assertSame('Unknown - Unknown', $result);
     }
 
-    public function test_toString_with_null_agent(): void
+    public function testToStringWithNullAgent(): void
     {
+        /*
+         * 使用具体类 Hotel 创建 mock 对象的原因：
+         * 1. Hotel 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟 getName() 方法的返回值，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $hotel = $this->createMock(Hotel::class);
         $hotel->method('getName')->willReturn('测试酒店');
 
-        $this->mapping->setHotel($hotel);
+        $mapping = new AgentHotelMapping();
+        $mapping->setHotel($hotel);
 
-        $this->assertSame('Unknown - 测试酒店', $this->mapping->__toString());
+        $this->assertSame('Unknown - 测试酒店', $mapping->__toString());
     }
 
-    public function test_toString_with_null_hotel(): void
+    public function testToStringWithNullHotel(): void
     {
         $agent = new Agent();
         $agent->setCompanyName('测试代理公司');
 
-        $this->mapping->setAgent($agent);
+        $mapping = new AgentHotelMapping();
+        $mapping->setAgent($agent);
 
-        $this->assertSame('测试代理公司 - Unknown', $this->mapping->__toString());
+        $this->assertSame('测试代理公司 - Unknown', $mapping->__toString());
     }
 
-    public function test_setAgent_with_valid_agent(): void
+    public function testSetAgentWithValidAgent(): void
     {
         $agent = new Agent();
+        $mapping = new AgentHotelMapping();
 
-        $result = $this->mapping->setAgent($agent);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertSame($agent, $this->mapping->getAgent());
+        $mapping->setAgent($agent);
+        $this->assertSame($agent, $mapping->getAgent());
     }
 
-    public function test_setAgent_with_null(): void
+    public function testSetAgentWithNull(): void
     {
-        $result = $this->mapping->setAgent(null);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertNull($this->mapping->getAgent());
+        $mapping = new AgentHotelMapping();
+        $mapping->setAgent(null);
+        $this->assertNull($mapping->getAgent());
     }
 
-    public function test_setHotel_with_valid_hotel(): void
+    public function testSetHotelWithValidHotel(): void
     {
+        /*
+         * 使用具体类 Hotel 创建 mock 对象的原因：
+         * 1. Hotel 是来自 hotel-profile-bundle 的实体类，没有对应的接口定义
+         * 2. 在测试中只需要模拟基本的 setter/getter 行为，使用具体类是合理的
+         * 3. 由于这是外部依赖的实体类，创建接口会增加不必要的复杂性
+         */
         $hotel = $this->createMock(Hotel::class);
+        $mapping = new AgentHotelMapping();
 
-        $result = $this->mapping->setHotel($hotel);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertSame($hotel, $this->mapping->getHotel());
+        $mapping->setHotel($hotel);
+        $this->assertSame($hotel, $mapping->getHotel());
     }
 
-    public function test_setHotel_with_null(): void
+    public function testSetHotelWithNull(): void
     {
-        $result = $this->mapping->setHotel(null);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertNull($this->mapping->getHotel());
+        $mapping = new AgentHotelMapping();
+        $mapping->setHotel(null);
+        $this->assertNull($mapping->getHotel());
     }
 
-    public function test_setRoomTypeIds_with_valid_array(): void
+    public function testSetRoomTypeIdsWithValidArray(): void
     {
         $roomTypeIds = [1, 2, 3];
+        $mapping = new AgentHotelMapping();
 
-        $result = $this->mapping->setRoomTypeIds($roomTypeIds);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertSame($roomTypeIds, $this->mapping->getRoomTypeIds());
+        $mapping->setRoomTypeIds($roomTypeIds);
+        $this->assertSame($roomTypeIds, $mapping->getRoomTypeIds());
     }
 
-    public function test_setRoomTypeIds_with_empty_array(): void
+    public function testSetRoomTypeIdsWithEmptyArray(): void
     {
-        $result = $this->mapping->setRoomTypeIds([]);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertSame([], $this->mapping->getRoomTypeIds());
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([]);
+        $this->assertSame([], $mapping->getRoomTypeIds());
     }
 
-    public function test_addRoomTypeId_adds_new_id(): void
+    public function testAddRoomTypeIdAddsNewId(): void
     {
-        $result = $this->mapping->addRoomTypeId(1);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertContains(1, $this->mapping->getRoomTypeIds());
+        $mapping = new AgentHotelMapping();
+        $mapping->addRoomTypeId(1);
+        $this->assertContains(1, $mapping->getRoomTypeIds());
     }
 
-    public function test_addRoomTypeId_does_not_add_duplicate(): void
+    public function testAddRoomTypeIdDoesNotAddDuplicate(): void
     {
-        $this->mapping->setRoomTypeIds([1, 2]);
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([1, 2]);
 
-        $this->mapping->addRoomTypeId(1);
+        $mapping->addRoomTypeId(1);
 
-        $this->assertSame([1, 2], $this->mapping->getRoomTypeIds());
+        $this->assertSame([1, 2], $mapping->getRoomTypeIds());
     }
 
-    public function test_addRoomTypeId_with_zero(): void
+    public function testAddRoomTypeIdWithZero(): void
     {
-        $result = $this->mapping->addRoomTypeId(0);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertContains(0, $this->mapping->getRoomTypeIds());
+        $mapping = new AgentHotelMapping();
+        $mapping->addRoomTypeId(0);
+        $this->assertContains(0, $mapping->getRoomTypeIds());
     }
 
-    public function test_removeRoomTypeId_removes_existing_id(): void
+    public function testRemoveRoomTypeIdRemovesExistingId(): void
     {
-        $this->mapping->setRoomTypeIds([1, 2, 3]);
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([1, 2, 3]);
 
-        $result = $this->mapping->removeRoomTypeId(2);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertSame([0 => 1, 2 => 3], $this->mapping->getRoomTypeIds());
+        $mapping->removeRoomTypeId(2);
+        $this->assertSame([0 => 1, 2 => 3], $mapping->getRoomTypeIds());
     }
 
-    public function test_removeRoomTypeId_with_non_existing_id(): void
+    public function testRemoveRoomTypeIdWithNonExistingId(): void
     {
-        $this->mapping->setRoomTypeIds([1, 2, 3]);
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([1, 2, 3]);
 
-        $this->mapping->removeRoomTypeId(4);
+        $mapping->removeRoomTypeId(4);
 
-        $this->assertSame([1, 2, 3], $this->mapping->getRoomTypeIds());
+        $this->assertSame([1, 2, 3], $mapping->getRoomTypeIds());
     }
 
-    public function test_removeRoomTypeId_from_empty_array(): void
+    public function testRemoveRoomTypeIdFromEmptyArray(): void
     {
-        $result = $this->mapping->removeRoomTypeId(1);
-
-        $this->assertSame($this->mapping, $result);
-        $this->assertSame([], $this->mapping->getRoomTypeIds());
+        $mapping = new AgentHotelMapping();
+        $mapping->removeRoomTypeId(1);
+        $this->assertSame([], $mapping->getRoomTypeIds());
     }
 
-    public function test_hasRoomTypeId_returns_true_when_exists(): void
+    public function testHasRoomTypeIdReturnsTrueWhenExists(): void
     {
-        $this->mapping->setRoomTypeIds([1, 2, 3]);
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([1, 2, 3]);
 
-        $this->assertTrue($this->mapping->hasRoomTypeId(2));
+        $this->assertTrue($mapping->hasRoomTypeId(2));
     }
 
-    public function test_hasRoomTypeId_returns_false_when_not_exists(): void
+    public function testHasRoomTypeIdReturnsFalseWhenNotExists(): void
     {
-        $this->mapping->setRoomTypeIds([1, 2, 3]);
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([1, 2, 3]);
 
-        $this->assertFalse($this->mapping->hasRoomTypeId(4));
+        $this->assertFalse($mapping->hasRoomTypeId(4));
     }
 
-    public function test_hasRoomTypeId_with_empty_array(): void
+    public function testHasRoomTypeIdWithEmptyArray(): void
     {
-        $this->assertFalse($this->mapping->hasRoomTypeId(1));
+        $mapping = new AgentHotelMapping();
+        $this->assertFalse($mapping->hasRoomTypeId(1));
     }
 
-    public function test_hasRoomTypeId_with_zero(): void
+    public function testHasRoomTypeIdWithZero(): void
     {
-        $this->mapping->setRoomTypeIds([0, 1, 2]);
+        $mapping = new AgentHotelMapping();
+        $mapping->setRoomTypeIds([0, 1, 2]);
 
-        $this->assertTrue($this->mapping->hasRoomTypeId(0));
+        $this->assertTrue($mapping->hasRoomTypeId(0));
     }
 
-    public function test_setCreateTime_sets_time(): void
-    {
-        $time = new \DateTimeImmutable();
-
-        $this->mapping->setCreateTime($time);
-
-        $this->assertSame($time, $this->mapping->getCreateTime());
-    }
-
-    public function test_setUpdateTime_sets_time(): void
+    public function testSetCreateTimeSetsTime(): void
     {
         $time = new \DateTimeImmutable();
+        $mapping = new AgentHotelMapping();
+        $mapping->setCreateTime($time);
 
-        $this->mapping->setUpdateTime($time);
-
-        $this->assertSame($time, $this->mapping->getUpdateTime());
+        $this->assertSame($time, $mapping->getCreateTime());
     }
 
-    public function test_default_values(): void
+    public function testSetUpdateTimeSetsTime(): void
     {
-        $this->assertNull($this->mapping->getId());
-        $this->assertNull($this->mapping->getAgent());
-        $this->assertNull($this->mapping->getHotel());
-        $this->assertSame([], $this->mapping->getRoomTypeIds());
-        $this->assertNull($this->mapping->getCreateTime());
-        $this->assertNull($this->mapping->getUpdateTime());
-        $this->assertNull($this->mapping->getCreatedBy());
+        $time = new \DateTimeImmutable();
+        $mapping = new AgentHotelMapping();
+        $mapping->setUpdateTime($time);
+
+        $this->assertSame($time, $mapping->getUpdateTime());
+    }
+
+    public static function propertiesProvider(): iterable
+    {
+        $agent = new Agent();
+        $agent->setCode('TEST001');
+        $agent->setCompanyName('测试代理公司');
+        $agent->setCreatedBy('test-user');
+
+        $hotel = new Hotel();
+        $hotel->setName('测试酒店');
+
+        yield 'valid_mapping' => ['agent', $agent];
+        yield 'empty_room_types' => ['hotel', $hotel];
+        yield 'single_room_type' => ['roomTypeIds', [5]];
+    }
+
+    protected function createEntity(): object
+    {
+        return new AgentHotelMapping();
     }
 }

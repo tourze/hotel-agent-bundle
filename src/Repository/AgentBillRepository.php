@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tourze\HotelAgentBundle\Repository;
 
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -7,17 +9,14 @@ use Doctrine\Persistence\ManagerRegistry;
 use Tourze\HotelAgentBundle\Entity\Agent;
 use Tourze\HotelAgentBundle\Entity\AgentBill;
 use Tourze\HotelAgentBundle\Enum\BillStatusEnum;
+use Tourze\PHPUnitSymfonyKernelTest\Attribute\AsRepository;
 
 /**
  * 代理账单仓库类
  *
  * @extends ServiceEntityRepository<AgentBill>
- *
- * @method AgentBill|null find($id, $lockMode = null, $lockVersion = null)
- * @method AgentBill|null findOneBy(array $criteria, array $orderBy = null)
- * @method AgentBill[]    findAll()
- * @method AgentBill[]    findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
  */
+#[AsRepository(entityClass: AgentBill::class)]
 class AgentBillRepository extends ServiceEntityRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -25,10 +24,7 @@ class AgentBillRepository extends ServiceEntityRepository
         parent::__construct($registry, AgentBill::class);
     }
 
-    /**
-     * 保存账单实体
-     */
-    public function save(AgentBill $entity, bool $flush = false): void
+    public function save(AgentBill $entity, bool $flush = true): void
     {
         $this->getEntityManager()->persist($entity);
 
@@ -37,10 +33,7 @@ class AgentBillRepository extends ServiceEntityRepository
         }
     }
 
-    /**
-     * 删除账单实体
-     */
-    public function remove(AgentBill $entity, bool $flush = false): void
+    public function remove(AgentBill $entity, bool $flush = true): void
     {
         $this->getEntityManager()->remove($entity);
 
@@ -54,59 +47,76 @@ class AgentBillRepository extends ServiceEntityRepository
      */
     public function findByAgentAndMonth(Agent $agent, string $billMonth): ?AgentBill
     {
+        /** @var AgentBill|null */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.agent = :agent')
             ->andWhere('ab.billMonth = :billMonth')
             ->setParameter('agent', $agent)
             ->setParameter('billMonth', $billMonth)
             ->getQuery()
-            ->getOneOrNullResult();
+            ->getOneOrNullResult()
+        ;
     }
 
     /**
      * 根据代理查找账单
+     *
+     * @return AgentBill[]
      */
     public function findByAgent(Agent $agent): array
     {
+        /** @var AgentBill[] */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.agent = :agent')
             ->setParameter('agent', $agent)
             ->orderBy('ab.billMonth', 'DESC')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
     }
 
     /**
      * 根据账单状态查找账单
+     *
+     * @return AgentBill[]
      */
     public function findByStatus(BillStatusEnum $status): array
     {
+        /** @var AgentBill[] */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.status = :status')
             ->setParameter('status', $status)
             ->orderBy('ab.billMonth', 'DESC')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
     }
 
     /**
      * 查找指定月份的所有账单
+     *
+     * @return AgentBill[]
      */
     public function findByMonth(string $billMonth): array
     {
+        /** @var AgentBill[] */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.billMonth = :billMonth')
             ->setParameter('billMonth', $billMonth)
             ->orderBy('ab.id', 'ASC')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
     }
 
     /**
      * 查找指定时间段内的账单
+     *
+     * @return AgentBill[]
      */
     public function findByPeriod(string $startMonth, string $endMonth): array
     {
+        /** @var AgentBill[] */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.billMonth >= :startMonth')
             ->andWhere('ab.billMonth <= :endMonth')
@@ -114,32 +124,41 @@ class AgentBillRepository extends ServiceEntityRepository
             ->setParameter('endMonth', $endMonth)
             ->orderBy('ab.billMonth', 'DESC')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
     }
 
     /**
      * 查找待确认的账单
+     *
+     * @return AgentBill[]
      */
     public function findPendingBills(): array
     {
+        /** @var AgentBill[] */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.status = :status')
             ->setParameter('status', BillStatusEnum::PENDING)
             ->orderBy('ab.billMonth', 'ASC')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
     }
 
     /**
      * 查找已确认但未支付的账单
+     *
+     * @return AgentBill[]
      */
     public function findConfirmedUnpaidBills(): array
     {
+        /** @var AgentBill[] */
         return $this->createQueryBuilder('ab')
             ->andWhere('ab.status = :status')
             ->setParameter('status', BillStatusEnum::CONFIRMED)
             ->orderBy('ab.billMonth', 'ASC')
             ->getQuery()
-            ->getResult();
+            ->getResult()
+        ;
     }
-} 
+}

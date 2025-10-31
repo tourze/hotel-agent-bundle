@@ -1,0 +1,56 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block content_title %}标记支付失败{% endblock %}
+
+{% block main %}
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">支付信息</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>支付单号:</strong> {{ payment.paymentNo }}</p>
+                    <p><strong>支付金额:</strong> ¥{{ payment.amount }}</p>
+                    <p><strong>支付方式:</strong> {{ payment.paymentMethod.getLabel() }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>当前状态:</strong>
+                        <span class="badge badge-warning">{{ payment.status.getLabel() }}</span>
+                    </p>
+                    <p><strong>创建时间:</strong> {{ payment.createTime|date('Y-m-d H:i:s') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header">
+            <h5 class="card-title">失败原因</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label for="failureReason">请输入失败原因：</label>
+                    <textarea
+                        id="failureReason"
+                        name="failureReason"
+                        class="form-control"
+                        rows="5"
+                        placeholder="请详细说明支付失败的原因..."
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-group mt-3">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fa fa-times"></i> 确认标记为失败
+                    </button>
+                    <a href="{{ ea_url().setAction('index') }}" class="btn btn-secondary ml-2">
+                        <i class="fa fa-arrow-left"></i> 取消
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}

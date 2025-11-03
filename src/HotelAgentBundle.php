@@ -10,6 +10,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 use Tourze\BundleDependency\BundleDependencyInterface;
 use Tourze\DoctrineTimestampBundle\DoctrineTimestampBundle;
 use Tourze\DoctrineUserBundle\DoctrineUserBundle;
+use Tourze\EasyAdminMenuBundle\EasyAdminMenuBundle;
 use Tourze\HotelContractBundle\HotelContractBundle;
 use Tourze\HotelProfileBundle\HotelProfileBundle;
 use Tourze\RoutingAutoLoaderBundle\RoutingAutoLoaderBundle;
@@ -26,6 +27,7 @@ class HotelAgentBundle extends Bundle implements BundleDependencyInterface
             DoctrineTimestampBundle::class => ['all' => true],
             DoctrineUserBundle::class => ['all' => true],
             RoutingAutoLoaderBundle::class => ['all' => true],
+            EasyAdminMenuBundle::class => ['all' => true],
         ];
     }
 }

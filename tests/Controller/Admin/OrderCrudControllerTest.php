@@ -28,11 +28,6 @@ use Tourze\PHPUnitSymfonyWebTest\AbstractEasyAdminControllerTestCase;
 #[RunTestsInSeparateProcesses]
 final class OrderCrudControllerTest extends AbstractEasyAdminControllerTestCase
 {
-    protected function onSetUp(): void
-    {
-        // 不调用 parent::setUp() 以避免无限循环
-    }
-
     public function testIndexPageRequiresAuthentication(): void
     {
         $client = self::createClientWithDatabase();

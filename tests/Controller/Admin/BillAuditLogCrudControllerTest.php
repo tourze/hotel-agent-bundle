@@ -18,11 +18,6 @@ use Tourze\PHPUnitSymfonyWebTest\AbstractEasyAdminControllerTestCase;
 #[RunTestsInSeparateProcesses]
 final class BillAuditLogCrudControllerTest extends AbstractEasyAdminControllerTestCase
 {
-    protected function onSetUp(): void
-    {
-        // 无需额外设置
-    }
-
     /**
      * @return AbstractCrudController<BillAuditLog>
      */

@@ -87,7 +87,7 @@ class CheckExpiredAgentsCommand extends Command
 
     /**
      * @param Agent[] $expiredAgents
-     * @return array<int, array<int, string>>
+     * @return array<int, array<int, string|null>>
      */
     private function buildExpiredAgentsTableData(array $expiredAgents): array
     {
@@ -154,7 +154,7 @@ class CheckExpiredAgentsCommand extends Command
 
     /**
      * @param Agent[] $expiringAgents
-     * @return array<int, array<int, string>>
+     * @return array<int, array<int, string|null>>
      */
     private function buildExpiringAgentsTableData(array $expiringAgents): array
     {

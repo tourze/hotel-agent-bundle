@@ -32,27 +32,26 @@ class Agent implements \Stringable
     #[Assert\Positive]
     private ?int $userId = null;
 
-    #[ORM\Column(type: Types::STRING, length: 50, unique: true, options: ['comment' => '代理编号'])]
-    #[Assert\NotBlank]
+    #[ORM\Column(type: Types::STRING, length: 50, unique: true, nullable: true, options: ['comment' => '代理编号'])]
     #[Assert\Length(max: 50)]
     #[IndexColumn]
-    private string $code = '';
+    private ?string $code = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, options: ['comment' => '公司名称'])]
     #[Assert\NotBlank]
     #[Assert\Length(max: 100)]
-    private string $companyName = '';
+    private ?string $companyName = null;
 
     #[ORM\Column(type: Types::STRING, length: 50, options: ['comment' => '联系人姓名'])]
     #[Assert\NotBlank]
     #[Assert\Length(max: 50)]
-    private string $contactPerson = '';
+    private ?string $contactPerson = null;
 
     #[ORM\Column(type: Types::STRING, length: 20, options: ['comment' => '联系电话'])]
     #[Assert\NotBlank]
     #[Assert\Length(max: 20)]
     #[Assert\Regex(pattern: '/^[0-9+\-\s()]+$/', message: '请输入有效的电话号码')]
-    private string $phone = '';
+    private ?string $phone = null;
 
     #[ORM\Column(type: Types::STRING, length: 100, nullable: true, options: ['comment' => '联系邮箱'])]
     #[Assert\Email]
@@ -127,42 +126,42 @@ class Agent implements \Stringable
         $this->userId = $userId;
     }
 
-    public function getCode(): string
+    public function getCode(): ?string
     {
         return $this->code;
     }
 
-    public function setCode(string $code): void
+    public function setCode(?string $code): void
     {
         $this->code = $code;
     }
 
     public function getCompanyName(): string
     {
-        return $this->companyName;
+        return $this->companyName ?? '';
     }
 
-    public function setCompanyName(string $companyName): void
+    public function setCompanyName(?string $companyName): void
     {
         $this->companyName = $companyName;
     }
 
     public function getContactPerson(): string
     {
-        return $this->contactPerson;
+        return $this->contactPerson ?? '';
     }
 
-    public function setContactPerson(string $contactPerson): void
+    public function setContactPerson(?string $contactPerson): void
     {
         $this->contactPerson = $contactPerson;
     }
 
     public function getPhone(): string
     {
-        return $this->phone;
+        return $this->phone ?? '';
     }
 
-    public function setPhone(string $phone): void
+    public function setPhone(?string $phone): void
     {
         $this->phone = $phone;
     }

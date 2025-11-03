@@ -55,7 +55,7 @@ readonly class AgentCodeGenerator
         }
 
         $lastCode = $lastAgent->getCode();
-        $lastNumber = (int) substr($lastCode, -2); // 取后两位
+        $lastNumber = (int) substr((string) $lastCode, -2); // 取后两位
 
         return $lastNumber + 1;
     }

@@ -393,7 +393,7 @@ final class AgentTest extends AbstractEntityTestCase
     {
         $agent = new Agent();
 
-        $this->assertSame('', $agent->getCode());
+        $this->assertNull($agent->getCode());
         $this->assertSame('', $agent->getCompanyName());
         $this->assertSame('', $agent->getContactPerson());
         $this->assertSame('', $agent->getPhone());

@@ -229,10 +229,13 @@ final class AgentCrudController extends AbstractCrudController
 
         // 检测是否在测试环境中
         if ($this->isTestEnvironment()) {
-            // 测试环境：在当前工作目录下创建
-            $uploadDir = 'public/uploads/licenses';
+            // 测试环境：使用内核项目目录
+            $kernel = $this->container->get('kernel');
+            $projectDir = $kernel->getProjectDir();
+            $uploadDir = $projectDir . '/public/uploads/licenses';
+
             if (!$filesystem->exists($uploadDir)) {
-                $filesystem->mkdir($uploadDir);
+                $filesystem->mkdir($uploadDir, 0755);
             }
             return $uploadDir;
         }
@@ -242,7 +245,7 @@ final class AgentCrudController extends AbstractCrudController
         $uploadDir = $projectRoot . '/public/uploads/licenses';
 
         if (!$filesystem->exists($uploadDir)) {
-            $filesystem->mkdir($uploadDir);
+            $filesystem->mkdir($uploadDir, 0755);
         }
 
         return $uploadDir;

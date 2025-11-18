@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Tourze\HotelAgentBundle\Controller\Admin\BillReport\MonthlyStatsController;
 use Tourze\PHPUnitSymfonyWebTest\AbstractWebTestCase;
 
@@ -41,8 +42,8 @@ final class MonthlyStatsControllerTest extends AbstractWebTestCase
     public function testSuccessfulRequest(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('GET', '/admin/bill-report/monthly-stats/2024-01');
         self::getClient($client);
@@ -69,8 +70,8 @@ final class MonthlyStatsControllerTest extends AbstractWebTestCase
     public function testValidBillMonthFormat(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('GET', '/admin/bill-report/monthly-stats/2024-12');
         self::getClient($client);
@@ -90,8 +91,8 @@ final class MonthlyStatsControllerTest extends AbstractWebTestCase
     public function testResponseContainsCorrectStructure(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('GET', '/admin/bill-report/monthly-stats/2024-01');
         self::getClient($client);
@@ -117,8 +118,8 @@ final class MonthlyStatsControllerTest extends AbstractWebTestCase
     public function testStatusBreakdownStructure(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('GET', '/admin/bill-report/monthly-stats/2024-01');
         self::getClient($client);
@@ -149,8 +150,8 @@ final class MonthlyStatsControllerTest extends AbstractWebTestCase
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $this->expectException(MethodNotAllowedHttpException::class);
         $client->request($method, '/admin/bill-report/monthly-stats/2024-01');

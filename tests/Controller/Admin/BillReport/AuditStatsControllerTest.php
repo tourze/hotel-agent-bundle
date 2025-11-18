@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Tourze\HotelAgentBundle\Controller\Admin\BillReport\AuditStatsController;
 use Tourze\PHPUnitSymfonyWebTest\AbstractWebTestCase;
 
@@ -43,8 +44,7 @@ final class AuditStatsControllerTest extends AbstractWebTestCase
     {
         $client = self::createClientWithDatabase();
         self::getClient($client); // 设置静态客户端用于断言
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -75,8 +75,7 @@ final class AuditStatsControllerTest extends AbstractWebTestCase
     {
         $client = self::createClientWithDatabase();
         self::getClient($client); // 设置静态客户端用于断言
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -106,8 +105,7 @@ final class AuditStatsControllerTest extends AbstractWebTestCase
     {
         $client = self::createClientWithDatabase();
         self::getClient($client); // 设置静态客户端用于断言
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -135,8 +133,8 @@ final class AuditStatsControllerTest extends AbstractWebTestCase
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         // For routes that only support POST method, Symfony returns MethodNotAllowedHttpException
         // when accessing with other methods

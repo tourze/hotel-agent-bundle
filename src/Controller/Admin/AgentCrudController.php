@@ -21,6 +21,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Response;
 use Tourze\HotelAgentBundle\Entity\Agent;
@@ -34,6 +35,12 @@ use Tourze\HotelAgentBundle\Enum\AgentStatusEnum;
 #[AdminCrud(routePath: '/hotel-agent/agent', routeName: 'hotel_agent_agent')]
 final class AgentCrudController extends AbstractCrudController
 {
+    public function __construct(
+        #[Autowire(param: 'kernel.project_dir')]
+        private readonly string $projectDir,
+    ) {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Agent::class;
@@ -123,18 +130,13 @@ final class AgentCrudController extends AbstractCrudController
 
         yield FormField::addTab('证件资料');
 
-        // 在测试环境中跳过文件上传字段（避免路径配置问题）
-        // 注意：虽然有 isTestEnvironment() 检测，但由于测试使用独立进程，
-        // 直接在此处硬编码跳过以确保测试稳定性
-        // if (!$this->isTestEnvironment()) {
-        //     yield ImageField::new('licenseUrl', '营业执照')
-        //         ->setBasePath('/uploads/licenses/')
-        //         ->setUploadDir($this->getUploadDir())
-        //         ->setUploadedFileNamePattern('[uuid].[extension]')
-        //         ->setHelp('支持 JPG、PNG、PDF 格式')
-        //         ->hideOnIndex()
-        //     ;
-        // }
+        yield ImageField::new('licenseUrl', '营业执照')
+            ->setBasePath('/uploads/licenses/')
+            ->setUploadDir($this->getUploadDir())
+            ->setUploadedFileNamePattern('[uuid].[extension]')
+            ->setHelp('支持 JPG、PNG、PDF 格式')
+            ->hideOnIndex()
+        ;
 
         yield FormField::addTab('等级设置');
 
@@ -209,48 +211,19 @@ final class AgentCrudController extends AbstractCrudController
     }
 
     /**
-     * 检测是否在测试环境中
-     */
-    private function isTestEnvironment(): bool
-    {
-        // 检查是否定义了测试常量
-        if (defined('PHPUNIT_RUNNING')) {
-            return true;
-        }
-
-        // 检查环境变量
-        return getenv('APP_ENV') === 'test';
-    }
-
-    /**
      * 获取上传目录，确保目录存在
      */
     private function getUploadDir(): string
     {
         $filesystem = new Filesystem();
+        $absoluteUploadDir = $this->projectDir . '/public/uploads/licenses';
 
-        // 检测是否在测试环境中
-        if ($this->isTestEnvironment()) {
-            // 测试环境：使用内核项目目录
-            $kernel = $this->container->get('kernel');
-            $projectDir = $kernel->getProjectDir();
-            $uploadDir = $projectDir . '/public/uploads/licenses';
-
-            if (!$filesystem->exists($uploadDir)) {
-                $filesystem->mkdir($uploadDir, 0755);
-            }
-            return $uploadDir;
+        if (!$filesystem->exists($absoluteUploadDir)) {
+            $filesystem->mkdir($absoluteUploadDir, 0755);
         }
 
-        // 生产环境：使用项目根目录的绝对路径
-        $projectRoot = dirname(__DIR__, 4); // 从 src/Controller/Admin/ 向上4级到达项目根目录
-        $uploadDir = $projectRoot . '/public/uploads/licenses';
-
-        if (!$filesystem->exists($uploadDir)) {
-            $filesystem->mkdir($uploadDir, 0755);
-        }
-
-        return $uploadDir;
+        // EasyAdmin 的 setUploadDir() 期望相对于项目根目录的相对路径
+        return 'public/uploads/licenses';
     }
 
     /**

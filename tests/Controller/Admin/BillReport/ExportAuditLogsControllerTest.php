@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Tourze\HotelAgentBundle\Controller\Admin\BillReport\ExportAuditLogsController;
 use Tourze\PHPUnitSymfonyWebTest\AbstractWebTestCase;
 
@@ -42,8 +43,8 @@ final class ExportAuditLogsControllerTest extends AbstractWebTestCase
     public function testSuccessfulExport(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $content = json_encode([
             'start_date' => '2024-01-01',
@@ -71,8 +72,8 @@ final class ExportAuditLogsControllerTest extends AbstractWebTestCase
     public function testWithInvalidJson(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -91,8 +92,8 @@ final class ExportAuditLogsControllerTest extends AbstractWebTestCase
     public function testWithoutDateRange(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $content = json_encode([]);
         if (false === $content) {
@@ -116,8 +117,8 @@ final class ExportAuditLogsControllerTest extends AbstractWebTestCase
     public function testExportedCsvContainsHeaders(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $content = json_encode([
             'start_date' => '2024-01-01',
@@ -150,8 +151,8 @@ final class ExportAuditLogsControllerTest extends AbstractWebTestCase
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         // For routes that only support POST method, Symfony returns MethodNotAllowedHttpException
         $this->expectException(MethodNotAllowedHttpException::class);

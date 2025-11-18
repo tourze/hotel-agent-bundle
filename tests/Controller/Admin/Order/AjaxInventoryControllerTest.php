@@ -42,8 +42,8 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testSuccessfulRequest(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('POST', '/admin/order/ajax/inventory', [
             'room_type_id' => 1,
@@ -51,8 +51,6 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
             'check_out_date' => '2024-02-02',
             'room_count' => 2,
         ]);
-
-        self::getClient($client);
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('content-type', 'application/json');
 
@@ -69,15 +67,13 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testMissingRoomTypeId(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('POST', '/admin/order/ajax/inventory', [
             'check_in_date' => '2024-02-01',
             'check_out_date' => '2024-02-02',
         ]);
-
-        self::getClient($client);
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         $responseContent = $client->getResponse()->getContent();
@@ -95,15 +91,13 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testMissingCheckInDate(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('POST', '/admin/order/ajax/inventory', [
             'room_type_id' => 1,
             'check_out_date' => '2024-02-02',
         ]);
-
-        self::getClient($client);
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         $responseContent = $client->getResponse()->getContent();
@@ -120,15 +114,13 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testMissingCheckOutDate(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('POST', '/admin/order/ajax/inventory', [
             'room_type_id' => 1,
             'check_in_date' => '2024-02-01',
         ]);
-
-        self::getClient($client);
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         $responseContent = $client->getResponse()->getContent();
@@ -145,16 +137,14 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testDefaultRoomCount(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('POST', '/admin/order/ajax/inventory', [
             'room_type_id' => 1,
             'check_in_date' => '2024-02-01',
             'check_out_date' => '2024-02-02',
         ]);
-
-        self::getClient($client);
         $this->assertResponseIsSuccessful();
 
         $responseContent = $client->getResponse()->getContent();
@@ -169,16 +159,14 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testEmptyStringDates(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('POST', '/admin/order/ajax/inventory', [
             'room_type_id' => 1,
             'check_in_date' => '',
             'check_out_date' => '',
         ]);
-
-        self::getClient($client);
         $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
 
         $responseContent = $client->getResponse()->getContent();
@@ -196,8 +184,8 @@ final class AjaxInventoryControllerTest extends AbstractWebTestCase
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new \Symfony\Component\Security\Core\User\InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         // For routes that only support POST method, Symfony returns MethodNotAllowedHttpException
         // when accessing with other methods

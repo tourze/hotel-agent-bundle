@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Tourze\HotelAgentBundle\Controller\Admin\BillReport\IndexController;
 use Tourze\PHPUnitSymfonyWebTest\AbstractWebTestCase;
 
@@ -41,8 +42,8 @@ final class IndexControllerTest extends AbstractWebTestCase
     public function testSuccessfulAccess(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('GET', '/admin/bill-report');
         self::getClient($client);
@@ -54,8 +55,8 @@ final class IndexControllerTest extends AbstractWebTestCase
     public function testRendersCorrectTemplate(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request('GET', '/admin/bill-report');
         self::getClient($client);
@@ -68,8 +69,8 @@ final class IndexControllerTest extends AbstractWebTestCase
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $this->expectException(MethodNotAllowedHttpException::class);
         $client->request($method, '/admin/bill-report');

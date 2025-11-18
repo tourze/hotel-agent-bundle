@@ -9,6 +9,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Tourze\HotelAgentBundle\Controller\Admin\BillReport\DetailedReportController;
 use Tourze\PHPUnitSymfonyWebTest\AbstractWebTestCase;
 
@@ -42,8 +43,8 @@ final class DetailedReportControllerTest extends AbstractWebTestCase
     public function testSuccessfulRequest(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -74,8 +75,8 @@ final class DetailedReportControllerTest extends AbstractWebTestCase
     public function testWithInvalidJson(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -105,8 +106,8 @@ final class DetailedReportControllerTest extends AbstractWebTestCase
     public function testWithoutDateRange(): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         $client->request(
             'POST',
@@ -135,8 +136,8 @@ final class DetailedReportControllerTest extends AbstractWebTestCase
     public function testMethodNotAllowed(string $method): void
     {
         $client = self::createClientWithDatabase();
-        $admin = $this->createAdminUser('admin@example.com', 'password123');
-        $this->loginAsAdmin($client, 'admin@example.com', 'password123');
+        self::getClient($client);
+        $client->loginUser(new InMemoryUser('admin', 'password', ['ROLE_ADMIN']), 'main');
 
         // For routes that only support POST method, Symfony returns MethodNotAllowedHttpException
         $this->expectException(MethodNotAllowedHttpException::class);

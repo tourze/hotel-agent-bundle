@@ -36,6 +36,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST001');
         $agent->setCompanyName('Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -74,6 +76,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST002');
         $agent->setCompanyName('Test Company 2');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -127,6 +131,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST003');
         $agent->setCompanyName('Test Company 3');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -187,6 +193,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST004');
         $agent->setCompanyName('Test Company 4');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -260,6 +268,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST005');
         $agent->setCompanyName('Test Company 5');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -301,6 +311,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_ORDER');
         $agent->setCompanyName('Order Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -340,6 +352,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_LIMIT');
         $agent->setCompanyName('Limit Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -369,6 +383,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_SAVE');
         $agent->setCompanyName('Save Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -399,6 +415,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_SAVE_NO_FLUSH');
         $agent->setCompanyName('Save No Flush Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -429,6 +447,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_REMOVE');
         $agent->setCompanyName('Remove Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -461,6 +481,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_REMOVE_NO_FLUSH');
         $agent->setCompanyName('Remove No Flush Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -496,6 +518,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_COUNT');
         $agent->setCompanyName('Count Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -532,6 +556,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent1 = new Agent();
         $agent1->setCode('ASSOC_COUNT_1');
         $agent1->setCompanyName('Association Count Company 1');
+        $agent1->setContactPerson('Test Contact');
+        $agent1->setPhone('13800138000');
         self::getEntityManager()->persist($agent1);
 
         $agentBill1 = new AgentBill();
@@ -544,6 +570,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent2 = new Agent();
         $agent2->setCode('ASSOC_COUNT_2');
         $agent2->setCompanyName('Association Count Company 2');
+        $agent2->setContactPerson('Test Contact');
+        $agent2->setPhone('13800138000');
         self::getEntityManager()->persist($agent2);
 
         $agentBill2 = new AgentBill();
@@ -583,6 +611,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent1 = new Agent();
         $agent1->setCode('ASSOC_QUERY_1');
         $agent1->setCompanyName('Association Query Company 1');
+        $agent1->setContactPerson('Test Contact');
+        $agent1->setPhone('13800138000');
         self::getEntityManager()->persist($agent1);
 
         $agentBill1 = new AgentBill();
@@ -595,6 +625,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent2 = new Agent();
         $agent2->setCode('ASSOC_QUERY_2');
         $agent2->setCompanyName('Association Query Company 2');
+        $agent2->setContactPerson('Test Contact');
+        $agent2->setPhone('13800138000');
         self::getEntityManager()->persist($agent2);
 
         $agentBill2 = new AgentBill();
@@ -636,6 +668,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('NULL_FIELD');
         $agent->setCompanyName('NULL Field Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -672,6 +706,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('COUNT_NULL');
         $agent->setCompanyName('Count NULL Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();
@@ -718,6 +754,8 @@ final class BillAuditLogRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('ORDER_ONE_BY');
         $agent->setCompanyName('Order One By Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
 
         $agentBill = new AgentBill();

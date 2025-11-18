@@ -38,6 +38,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST001');
         $agent->setCompanyName('Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::A);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -61,6 +63,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('AGENT001');
         $agent->setCompanyName('Test Company');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
         self::getEntityManager()->flush();
 
@@ -69,6 +73,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent1 = new Agent();
         $agent1->setCode('TEST002');
         $agent1->setCompanyName('Test Company 2');
+        $agent1->setContactPerson('Test Contact');
+        $agent1->setPhone('13800138000');
         $agent1->setLevel(AgentLevelEnum::A);
         $agent1->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent1);
@@ -84,6 +90,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent2 = new Agent();
         $agent2->setCode('TEST003');
         $agent2->setCompanyName('Test Company 3');
+        $agent2->setContactPerson('Test Contact');
+        $agent2->setPhone('13800138000');
         $agent2->setLevel(AgentLevelEnum::A);
         $agent2->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent2);
@@ -111,6 +119,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent3 = new Agent();
         $agent3->setCode('TEST004');
         $agent3->setCompanyName('Test Company 4');
+        $agent3->setContactPerson('Test Contact');
+        $agent3->setPhone('13800138000');
         $agent3->setLevel(AgentLevelEnum::A);
         $agent3->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent3);
@@ -125,6 +135,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent4 = new Agent();
         $agent4->setCode('TEST005');
         $agent4->setCompanyName('Test Company 5');
+        $agent4->setContactPerson('Test Contact');
+        $agent4->setPhone('13800138000');
         $agent4->setLevel(AgentLevelEnum::A);
         $agent4->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent4);
@@ -392,6 +404,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('AGENT002');
         $agent->setCompanyName('Test Company 2');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         self::getEntityManager()->persist($agent);
         self::getEntityManager()->flush();
 
@@ -506,6 +520,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_SAVE');
         $agent->setCompanyName('Test Company Save');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::A);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -531,6 +547,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_SAVE_NO_FLUSH');
         $agent->setCompanyName('Test Company Save No Flush');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::B);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -556,6 +574,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_REMOVE');
         $agent->setCompanyName('Test Company Remove');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::C);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -583,6 +603,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_REMOVE_NO_FLUSH');
         $agent->setCompanyName('Test Company Remove No Flush');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::A);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -611,6 +633,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_COUNT');
         $agent->setCompanyName('Test Company Count');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::B);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -648,6 +672,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_NULL_FIELDS');
         $agent->setCompanyName('Test Company Null Fields');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::C);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -683,6 +709,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_FIND_ONE_BY_AGENT');
         $agent->setCompanyName('Test Company Find One By Agent');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::A);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);
@@ -708,6 +736,8 @@ final class OrderRepositoryTest extends AbstractRepositoryTestCase
         $agent = new Agent();
         $agent->setCode('TEST_COUNT_AGENT');
         $agent->setCompanyName('Test Company Count Agent');
+        $agent->setContactPerson('Test Contact');
+        $agent->setPhone('13800138000');
         $agent->setLevel(AgentLevelEnum::B);
         $agent->setStatus(AgentStatusEnum::ACTIVE);
         self::getEntityManager()->persist($agent);

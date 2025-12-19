@@ -6,7 +6,7 @@ namespace Tourze\HotelAgentBundle\DependencyInjection;
 
 use Tourze\SymfonyDependencyServiceLoader\AutoExtension;
 
-class HotelAgentExtension extends AutoExtension
+final class HotelAgentExtension extends AutoExtension
 {
     protected function getConfigDir(): string
     {

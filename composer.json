@@ -25,8 +25,8 @@
     "symfony/doctrine-bridge": "^7.3",
     "symfony/filesystem": "^7.3",
     "symfony/form": "^7.3",
-    "symfony/framework-bundle": "^7.3",
-    "symfony/http-foundation": "^7.3",
+    "symfony/framework-bundle": "^7.4",
+    "symfony/http-foundation": "^7.4",
     "symfony/http-kernel": "^7.3",
     "symfony/property-access": "^7.3",
     "symfony/routing": "^7.3",
@@ -51,9 +51,9 @@
     "tourze/phpunit-base": "1.*",
     "tourze/phpunit-doctrine-entity": "1.*",
     "tourze/phpunit-enum": "1.*",
-    "tourze/phpunit-symfony-kernel-test": "1.0.*",
-    "tourze/phpunit-symfony-unit-test": "1.*",
-    "tourze/phpunit-symfony-web-test": "1.*"
+    "tourze/phpunit-symfony-kernel-test": "2.0.*",
+    "tourze/phpunit-symfony-unit-test": "2.0.*",
+    "tourze/phpunit-symfony-web-test": "2.0.*"
   },
   "autoload": {
     "psr-4": {
